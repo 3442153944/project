@@ -1,0 +1,40 @@
+server:
+  host: 0.0.0.0
+  port: 8080
+  mode: debug
+
+database:
+  host: localhost
+  port: 5432
+  user: admin
+  password: sunyuanling
+  dbname: file
+  sslmode: disable
+  max_open_conns: 25
+  max_idle_conns: 5
+
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+  pool_size: 10
+
+jwt:
+  secret: sunyuanling-secret-2025
+  expire_hours: 168
+  refresh_expire_hours: 720
+
+security:
+  bcrypt_cost: 10
+  max_login_attempts: 5
+  lockout_duration_minutes: 30
+
+sync:
+  interval_seconds: 30
+  batch_size: 100
+
+log:
+  level: debug
+  output: stdout
+  file_path: ./logs/app.log
