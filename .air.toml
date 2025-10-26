@@ -1,0 +1,23 @@
+# .air.toml
+root = "."
+tmp_dir = "goBuild"
+
+[build]
+cmd = "go build -o ./goBuild/main.exe ."
+bin = "./goBuild/main.exe"
+include_ext = ["go", "yaml"]
+exclude_dir = ["goBuild", "vendor"]
+delay = 1000
+
+[log]
+time = true
+color = true
+
+[color]
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
+
+[screen]
+clear_on_rebuild = true
