@@ -38,10 +38,11 @@ func (e *Encryptor) Decrypt(ciphertext string) (string, error) {
 	}
 
 	// 提取nonce和密文
-	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
+	nonce := data[:nonceSize]
+	ciphertextBytes := data[nonceSize:] //  修正：不要重复转换
 
 	// 解密
-	plaintext, err := gcm.Open(nil, nonce, []byte(ciphertext), nil)
+	plaintext, err := gcm.Open(nil, nonce, ciphertextBytes, nil)
 	if err != nil {
 		return "", ErrInvalidCiphertext
 	}
@@ -49,7 +50,7 @@ func (e *Encryptor) Decrypt(ciphertext string) (string, error) {
 	return string(plaintext), nil
 }
 
-// DecryptJSON 解密JSON数据（便捷方法）
+// DecryptJSON 解密JSON数据
 func (e *Encryptor) DecryptJSON(ciphertext string) ([]byte, error) {
 	plaintext, err := e.Decrypt(ciphertext)
 	if err != nil {

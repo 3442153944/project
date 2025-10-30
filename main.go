@@ -7,6 +7,9 @@ import (
 	"project/config"
 	"project/gateway"
 	"project/pkg/database"
+	"project/pkg/logger"
+
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -18,42 +21,62 @@ func main() {
 	}
 	fmt.Println("配置加载成功")
 
-	// ========== 2. 连接PostgreSQL ==========
-	fmt.Println("\n 连接PostgreSQL数据库...")
+	// ========== 2. 初始化日志系统 ==========
+	if err := logger.Init(cfg); err != nil {
+		log.Fatalf("日志初始化失败: %v", err)
+	}
+	defer logger.Sync() // 确保程序退出前刷新日志
+
+	logger.Info("应用启动",
+		zap.String("mode", cfg.Server.Mode),
+		zap.String("version", "1.0.0"),
+	)
+
+	// ========== 3. 连接PostgreSQL ==========
+	logger.Info("连接PostgreSQL数据库...")
 	db, err := database.NewPostgresDB(cfg.Database)
 	if err != nil {
-		log.Fatalf("数据库连接失败: %v", err)
+		logger.Fatal("数据库连接失败", zap.Error(err))
 	}
-	fmt.Println("PostgreSQL连接成功")
+	logger.Info("PostgreSQL连接成功",
+		zap.String("host", cfg.Database.Host),
+		zap.Int("port", cfg.Database.Port),
+	)
 
-	// ========== 3. 连接Redis ==========
-	fmt.Println("\n连接Redis...")
+	// ========== 4. 连接Redis ==========
+	logger.Info("连接Redis...")
 	rdb, err := database.NewRedisClient(cfg.Redis)
 	if err != nil {
-		log.Fatalf("Redis连接失败: %v", err)
+		logger.Fatal("Redis连接失败", zap.Error(err))
 	}
 	defer rdb.Close()
-	fmt.Println("Redis连接成功")
+	logger.Info("Redis连接成功",
+		zap.String("host", cfg.Redis.Host),
+		zap.Int("port", cfg.Redis.Port),
+	)
 
 	// 测试Redis
 	ctx := context.Background()
 	pong, err := rdb.Ping(ctx).Result()
 	if err != nil {
-		log.Fatalf("Redis Ping失败: %v", err)
+		logger.Fatal("Redis Ping失败", zap.Error(err))
 	}
-	fmt.Printf("   Redis响应: %s\n", pong)
+	logger.Debug("Redis Ping测试", zap.String("response", pong))
 
-	// ========== 4. 初始化网关 ==========
-	fmt.Println("\n初始化API网关...")
+	// ========== 5. 初始化网关 ==========
+	logger.Info("初始化API网关...")
 	gw := gateway.NewGateway(db, rdb)
 	gw.SetupRoutes()
 
-	// ========== 5. 启动服务器 ==========
+	// ========== 6. 启动服务器 ==========
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
-	fmt.Printf("\n 服务器启动成功！\n")
-	fmt.Printf("地址: http://localhost:%d\n\n", cfg.Server.Port)
+	logger.Info("服务器启动",
+		zap.String("address", addr),
+		zap.String("mode", cfg.Server.Mode),
+	)
+	fmt.Printf("\n🚀 服务器运行在 http://localhost:%d\n\n", cfg.Server.Port)
 
 	if err := gw.Run(addr); err != nil {
-		log.Fatalf("启动服务器失败: %v", err)
+		logger.Fatal("服务器启动失败", zap.Error(err))
 	}
 }

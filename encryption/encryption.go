@@ -49,7 +49,7 @@ func (e *Encryptor) Encrypt(plaintext string) (string, error) {
 		return "", err
 	}
 
-	// 使用GCM模式（推荐，提供认证加密）
+	// 使用GCM模式（提供认证加密）
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
 		return "", err
@@ -68,7 +68,7 @@ func (e *Encryptor) Encrypt(plaintext string) (string, error) {
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-// EncryptJSON 加密JSON数据（便捷方法）
+// EncryptJSON 加密JSON数据
 func (e *Encryptor) EncryptJSON(jsonData []byte) (string, error) {
 	return e.Encrypt(string(jsonData))
 }
@@ -76,6 +76,15 @@ func (e *Encryptor) EncryptJSON(jsonData []byte) (string, error) {
 // EncryptMap 加密map数据（自动序列化为JSON）
 func (e *Encryptor) EncryptMap(data map[string]interface{}) (string, error) {
 	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return "", err
+	}
+	return e.Encrypt(string(jsonBytes))
+}
+
+// EncryptStruct 加密结构体（自动序列化为JSON）
+func (e *Encryptor) EncryptStruct(v interface{}) (string, error) {
+	jsonBytes, err := json.Marshal(v)
 	if err != nil {
 		return "", err
 	}
