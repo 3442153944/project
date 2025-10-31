@@ -14,7 +14,7 @@ type KeyConfig struct {
 }
 
 var (
-	// 全局密钥配置
+	// Keys 全局密钥配置
 	Keys *KeyConfig
 )
 

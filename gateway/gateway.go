@@ -6,6 +6,7 @@ import (
 	"gorm.io/gorm"
 	"project/internal/handler/test"
 	// "project/internal/handler/auth"  // 未来添加
+	"project/middleware"
 	"project/pkg/response"
 )
 
@@ -16,8 +17,11 @@ type Gateway struct {
 }
 
 func NewGateway(db *gorm.DB, redis *redis.Client) *Gateway {
+	router := gin.Default()
+	router.Use(middleware.CORS())
+	router.Use(middleware.AuthToken())
 	return &Gateway{
-		router: gin.Default(),
+		router: router,
 		db:     db,
 		redis:  redis,
 	}
@@ -57,6 +61,8 @@ func (g *Gateway) SetupRoutes() {
 	g.router.NoRoute(func(c *gin.Context) {
 		response.NotFound(c, "接口不存在")
 	})
+	//	注册中间件
+
 }
 
 func (g *Gateway) GetRouter() *gin.Engine {

@@ -43,7 +43,17 @@ func (h *TestDBHandler) HandlePOST(c *gin.Context) {
 	var req struct {
 		SQL string `json:"sql" binding:"required"`
 	}
-
+	//content携带的信息
+	var auth = c.GetBool("Auth")
+	if auth == false {
+		response.Unauthorized(c, "请先登录")
+		return
+	} else {
+		response.Success(c, gin.H{
+			"message": "数据库查询成功",
+			"sql":     req.SQL,
+		})
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "参数错误: "+err.Error())
 		return

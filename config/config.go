@@ -15,6 +15,7 @@ type Config struct {
 	DebugLog LogConfig      `mapstructure:"debugLog"`
 	DevLog   LogConfig      `mapstructure:"devLog"`
 	ProdLog  LogConfig      `mapstructure:"prodLog"`
+	Token    TokenConfig    `mapstructure:"token"`
 }
 
 type ServerConfig struct {
@@ -67,6 +68,11 @@ type LogConfig struct {
 	Path       string `mapstructure:"path"`       // 日志目录
 }
 
+// TokenConfig Token 配置
+type TokenConfig struct {
+	ValidityDate int `mapstructure:"validityDate"` // 有效期（分钟）
+}
+
 func Load(configPath string) (*Config, error) {
 	viper.SetConfigFile(configPath)
 	viper.SetConfigType("yaml")
@@ -115,6 +121,11 @@ func validateConfig(cfg *Config) error {
 				return fmt.Errorf("%s.maxBackups 不能为负数", name)
 			}
 		}
+	}
+
+	// 验证 Token 配置
+	if cfg.Token.ValidityDate <= 0 {
+		return fmt.Errorf("token.validityDate 必须大于 0")
 	}
 
 	return nil

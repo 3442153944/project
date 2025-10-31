@@ -67,14 +67,13 @@ func main() {
 	logger.Info("初始化API网关...")
 	gw := gateway.NewGateway(db, rdb)
 	gw.SetupRoutes()
-
 	// ========== 6. 启动服务器 ==========
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	logger.Info("服务器启动",
 		zap.String("address", addr),
 		zap.String("mode", cfg.Server.Mode),
 	)
-	fmt.Printf("\n🚀 服务器运行在 http://localhost:%d\n\n", cfg.Server.Port)
+	fmt.Printf("\n 服务器运行在 http://localhost:%d\n\n", cfg.Server.Port)
 
 	if err := gw.Run(addr); err != nil {
 		logger.Fatal("服务器启动失败", zap.Error(err))

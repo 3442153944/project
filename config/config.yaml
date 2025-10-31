@@ -51,3 +51,6 @@ prodLog:
     fileSize: 10
     maxBackups: 5
     path: ./log
+token:
+#  有效期，单位分钟
+  validityDate: 360
