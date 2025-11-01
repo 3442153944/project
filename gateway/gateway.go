@@ -4,8 +4,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
+	"project/internal/handler/auth"
 	"project/internal/handler/test"
-	// "project/internal/handler/auth"  // 未来添加
 	"project/middleware"
 	"project/pkg/response"
 )
@@ -45,7 +45,8 @@ func (g *Gateway) SetupRoutes() {
 		test.NewRouter().RegisterRoutes(testGroup, g.db, g.redis)
 
 		// 注册auth模块路由（未来添加）
-		// authGroup := api.Group("/auth")
+		authGroup := api.Group("/auth")
+		auth.NewRouter().RegisterRoutes(authGroup, g.db, g.redis)
 		// auth.NewRouter().RegisterRoutes(authGroup, g.db, g.redis)
 	}
 

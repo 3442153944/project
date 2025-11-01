@@ -3,6 +3,8 @@ package _venv
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 
 	"gopkg.in/yaml.v3"
 )
@@ -29,7 +31,9 @@ func init() {
 
 // LoadKeys 从 key.yaml 加载密钥
 func LoadKeys() (*KeyConfig, error) {
-	path := "key.yaml"
+	_, filename, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(filename)
+	path := filepath.Join(dir, "key.yaml")
 
 	data, err := os.ReadFile(path)
 	if err != nil {

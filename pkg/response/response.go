@@ -65,3 +65,11 @@ func MethodNotAllowed(c *gin.Context, message string) {
 func InternalError(c *gin.Context, message string) {
 	Error(c, 500, message)
 }
+
+// TooManyRequests 429错误
+func TooManyRequests(c *gin.Context, msg string) {
+	c.JSON(429, gin.H{
+		"code": 429,
+		"msg":  msg,
+	})
+}

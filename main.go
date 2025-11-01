@@ -8,6 +8,7 @@ import (
 	"project/gateway"
 	"project/pkg/database"
 	"project/pkg/logger"
+	token "project/pkg/tokn"
 
 	"go.uber.org/zap"
 )
@@ -31,7 +32,10 @@ func main() {
 		zap.String("mode", cfg.Server.Mode),
 		zap.String("version", "1.0.0"),
 	)
-
+	//初始化token系统
+	if err := token.InitGlobalTokenManager(cfg); err != nil {
+		logger.Fatal("token初始化失败", zap.Error(err))
+	}
 	// ========== 3. 连接PostgreSQL ==========
 	logger.Info("连接PostgreSQL数据库...")
 	db, err := database.NewPostgresDB(cfg.Database)

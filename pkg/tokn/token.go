@@ -16,6 +16,24 @@ var (
 	ErrExpiredToken = errors.New("token has expired")
 )
 
+// token 全局单例
+var globalTokenManager *TokenManager
+
+// InitGlobalTokenManager 初始化全局TokenManager
+func InitGlobalTokenManager(cfg *config.Config) error {
+	tm, err := NewTokenManager(cfg)
+	if err != nil {
+		return err
+	}
+	globalTokenManager = tm
+	return nil
+}
+
+// GetGlobalTokenManager 获取token实例
+func GetGlobalTokenManager() *TokenManager {
+	return globalTokenManager
+}
+
 // TokenManager Token 管理器
 type TokenManager struct {
 	encryptor    *encryption.Encryptor
