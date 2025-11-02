@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	_interface "project/internal/handler/auth/interface"
+	"project/pkg/password"
 	token "project/pkg/tokn"
 	"time"
 
@@ -18,18 +20,18 @@ import (
 	"project/pkg/response"
 )
 
-type Handler struct {
+type authHandler struct { //  小写，私有
 	*base.BaseHandler
 }
 
-func NewAuthHandler(db *gorm.DB, redis *redis.Client) *Handler {
-	return &Handler{
+func NewAuthHandler(db *gorm.DB, redis *redis.Client) _interface.AuthHandler {
+	return &authHandler{
 		BaseHandler: base.NewBaseHandler(db, redis),
 	}
 }
 
 // HandlePOST Login 登录
-func (h *Handler) HandlePOST(c *gin.Context) {
+func (h *authHandler) HandlePOST(c *gin.Context) {
 	var req struct {
 		Username string `json:"username"`
 		Password string `json:"password" binding:"required"`
@@ -102,28 +104,28 @@ func (h *Handler) HandlePOST(c *gin.Context) {
 			)
 		}
 
-		// 记录失败次数
 		h.incrLoginFail(redisKey)
-
 		response.Unauthorized(c, "用户名或密码错误")
 		return
 	}
 
-	// 验证密码
-	if user.Password != req.Password {
+	// 验证密码（改用bcrypt）
+	if !password.VerifyPassword(user.Password, req.Password) {
 		logger.Warn("密码错误",
 			zap.Uint("user_id", user.ID),
 			zap.String("username", user.Username),
 			zap.String("ip", c.ClientIP()),
 		)
-		println("密码错误")
-		// 记录失败次数
-		h.incrLoginFail(redisKey)
-		println("尝试记录失败次数")
 
+		h.incrLoginFail(redisKey)
 		response.Unauthorized(c, "用户名或密码错误")
 		return
 	}
+
+	// 更新最后登录时间
+	now := time.Now()
+	h.DB.Model(&user).Update("last_login", now)
+	user.LastLogin = &now
 
 	// 登录成功：清除失败记录
 	h.Redis.Del(ctx, redisKey)
@@ -133,21 +135,33 @@ func (h *Handler) HandlePOST(c *gin.Context) {
 		zap.String("username", user.Username),
 		zap.String("ip", c.ClientIP()),
 	)
-	//生成token
 
+	// 生成token
 	generateToken, err := h.generateToken(&user)
-
 	if err != nil {
 		logger.Error("生成token失败", zap.Error(err))
 		response.Error(c, 500, "服务器内部错误")
 		return
 	}
 
-	response.Success(c, gin.H{"generateToken": generateToken, "user": user})
+	// 返回时不要返回整个user（包含密码）
+	response.Success(c, gin.H{
+		"token": generateToken,
+		"user": gin.H{
+			"id":         user.ID,
+			"username":   user.Username,
+			"email":      user.Email,
+			"phone":      user.Phone,
+			"avatar":     user.Avatar,
+			"role":       user.Role,
+			"status":     user.Status,
+			"last_login": user.LastLogin,
+		},
+	})
 }
 
 // 在 incrLoginFail 函数里加日志排查
-func (h *Handler) incrLoginFail(redisKey string) {
+func (h *authHandler) incrLoginFail(redisKey string) {
 	ctx := context.Background()
 
 	// 增加计数
@@ -167,7 +181,7 @@ func (h *Handler) incrLoginFail(redisKey string) {
 	logger.Info("设置过期时间成功", zap.Duration("ttl", 5*time.Minute))
 }
 
-func (h *Handler) generateToken(user *model.User) (string, error) {
+func (h *authHandler) generateToken(user *model.User) (string, error) {
 	payload := map[string]interface{}{
 		"user_id":   user.ID,
 		"username":  user.Username,

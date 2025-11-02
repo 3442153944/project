@@ -15,7 +15,12 @@ func NewRouter() handler.ModuleRouter {
 }
 
 func (r *Router) RegisterRoutes(group *gin.RouterGroup, db *gorm.DB, redis *redis.Client) {
-	//用户登录
+	// 创建业务处理实例
 	authHandler := NewAuthHandler(db, redis)
+	tokenHandler := NewTokenVerifyHandler(db, redis)
+
+	//用户登录
 	group.POST("/login", authHandler.HandlePOST)
+	//验证token
+	group.POST("/verify", tokenHandler.HandlePOST)
 }

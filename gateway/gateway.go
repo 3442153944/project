@@ -3,10 +3,13 @@ package gateway
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"project/internal/handler/auth"
 	"project/internal/handler/test"
+	"project/internal/handler/user"
 	"project/middleware"
+	"project/pkg/logger"
 	"project/pkg/response"
 )
 
@@ -18,6 +21,11 @@ type Gateway struct {
 
 func NewGateway(db *gorm.DB, redis *redis.Client) *Gateway {
 	router := gin.Default()
+	err := router.SetTrustedProxies([]string{"127.0.0.1", "192.168.0.0/16", "::1"})
+	if err != nil {
+		logger.Error("SetTrustedProxies失败", zap.Error(err))
+		return nil
+	}
 	router.Use(middleware.CORS())
 	router.Use(middleware.AuthToken())
 	return &Gateway{
@@ -48,6 +56,9 @@ func (g *Gateway) SetupRoutes() {
 		authGroup := api.Group("/auth")
 		auth.NewRouter().RegisterRoutes(authGroup, g.db, g.redis)
 		// auth.NewRouter().RegisterRoutes(authGroup, g.db, g.redis)
+		//注册user模块
+		userGroup := api.Group("/user")
+		user.NewUserRouter().RegisterRoutes(userGroup, g.db, g.redis)
 	}
 
 	// ========== 根路径 ==========
