@@ -6,3 +6,8 @@ import "github.com/gin-gonic/gin"
 type UserRegister interface {
 	HandlePOST(c *gin.Context)
 }
+
+// UserResetPassword 用户重置密码接口
+type UserResetPassword interface {
+	HandlePOST(c *gin.Context)
+}

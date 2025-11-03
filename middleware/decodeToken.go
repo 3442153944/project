@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"net/http"
 	"project/pkg/logger"
 	tokenFunc "project/pkg/tokn"
@@ -31,26 +33,48 @@ func AuthToken() gin.HandlerFunc {
 	logger.Info("AuthToken中间件已加载")
 	return func(c *gin.Context) {
 		token := c.GetHeader("Token")
-
-		//  Token为空，标记为未认证
 		if token == "" {
 			c.Set("Auth", false)
-			c.Next() //  只调用一次
+			c.Next()
 			return
 		}
 
-		//  验证Token
-		userInfo, err := tokenFunc.GetGlobalTokenManager().ValidateToken(token)
+		payload, err := tokenFunc.GetGlobalTokenManager().ValidateToken(token)
 		if err != nil {
 			logger.Warn("Token验证失败: " + err.Error())
 			c.Set("Auth", false)
-			c.Next() //  只调用一次
+			c.Next()
 			return
 		}
 
-		//  验证成功
+		// payload 是 *TokenPayload
+		if payload == nil {
+			logger.Warn("Token验证成功，但 payload 为空")
+			c.Set("Auth", false)
+			c.Next()
+			return
+		}
+
+		// 设置到上下文
 		c.Set("Auth", true)
-		c.Set("UserInfo", userInfo)
-		c.Next() //  只调用一次
+		c.Set("UserInfo", payload)
+
+		logger.Info("Token验证成功, UserInfo:", zap.Any("user_info", payload))
+		c.Next()
 	}
+}
+
+func interfaceMapToStringMap(m interface{}) map[string]interface{} {
+	res := make(map[string]interface{})
+	switch mm := m.(type) {
+	case map[interface{}]interface{}:
+		for k, v := range mm {
+			res[fmt.Sprintf("%v", k)] = v
+		}
+	case map[string]interface{}:
+		res = mm
+	default:
+		return nil
+	}
+	return res
 }

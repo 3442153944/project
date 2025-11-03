@@ -19,5 +19,7 @@ func NewUserRouter() handler.ModuleRouter {
 // RegisterRoutes 注册用户相关路由
 func (r *Router) RegisterRoutes(group *gin.RouterGroup, db *gorm.DB, client *redis.Client) {
 	userRegister := userHandler.NewRegisterHandler(db, client)
+	userResetPassword := userHandler.NewUserResetPasswordHandler(db, client)
 	group.POST("/register", userRegister.HandlePOST)
+	group.POST("/resetPassword", userResetPassword.HandlePOST)
 }
