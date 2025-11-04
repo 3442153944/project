@@ -53,4 +53,4 @@ prodLog:
     path: ./log
 token:
 #  有效期，单位分钟
-  validityDate: 360
+  validityDate: 3600

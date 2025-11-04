@@ -6,6 +6,7 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"project/internal/handler/auth"
+	"project/internal/handler/files"
 	"project/internal/handler/test"
 	"project/internal/handler/user"
 	"project/middleware"
@@ -72,6 +73,10 @@ func (g *Gateway) SetupRoutes() {
 
 		// 注册WebSocket路由
 		g.wsHandler.RegisterRoutes(api)
+
+		//注册files模块
+		filesGroup := api.Group("/files")
+		files.NewRouter().RegisterRoutes(filesGroup, g.db, g.redis)
 	}
 
 	// ========== 根路径 ==========

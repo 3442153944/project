@@ -1944,3 +1944,58 @@
 {"level":"INFO","time":"2025-11-04T00:45:43.892+0800","caller":"middleware/decodeToken.go:62","msg":"Token验证成功, UserInfo:","user_info":{"user_id":1,"username":"admin","email":"sunfujiaihaonv@gmail.com","issued_at":1762185748,"expires_at":1762207348}}
 {"level":"INFO","time":"2025-11-04T00:45:43.895+0800","caller":"websocket/connection.go:87","msg":"WebSocket连接已建立","conn_id":"20251104004543-gggggggg","user_id":1}
 {"level":"INFO","time":"2025-11-04T00:45:43.895+0800","caller":"websocket/hub.go:147","msg":"连接已注册","conn_id":"20251104004543-gggggggg","user_id":1,"total_connections":1}
+{"level":"INFO","time":"2025-11-04T21:47:57.961+0800","caller":"websocket/hub.go:198","msg":"连接已注销","conn_id":"20251104004543-gggggggg","user_id":1,"remaining_connections":0}
+{"level":"INFO","time":"2025-11-04T21:47:57.961+0800","caller":"websocket/connection.go:349","msg":"WebSocket连接已关闭","conn_id":"20251104004543-gggggggg","user_id":1}
+{"level":"INFO","time":"2025-11-04T21:48:14.358+0800","caller":"auth/auth.go:133","msg":"用户登录成功","user_id":1,"username":"admin","ip":"127.0.0.1"}
+{"level":"INFO","time":"2025-11-04T21:48:37.287+0800","caller":"project/main.go:31","msg":"应用启动","mode":"debug","version":"1.0.0"}
+{"level":"INFO","time":"2025-11-04T21:48:37.302+0800","caller":"project/main.go:40","msg":"连接PostgreSQL数据库..."}
+{"level":"INFO","time":"2025-11-04T21:48:37.526+0800","caller":"project/main.go:45","msg":"PostgreSQL连接成功","host":"localhost","port":5432}
+{"level":"INFO","time":"2025-11-04T21:48:37.526+0800","caller":"project/main.go:51","msg":"连接Redis..."}
+{"level":"INFO","time":"2025-11-04T21:48:37.534+0800","caller":"project/main.go:57","msg":"Redis连接成功","host":"localhost","port":6379}
+{"level":"INFO","time":"2025-11-04T21:48:37.535+0800","caller":"project/main.go:71","msg":"初始化API网关..."}
+{"level":"INFO","time":"2025-11-04T21:48:37.535+0800","caller":"middleware/decodeToken.go:14","msg":"CORS中间件已加载"}
+{"level":"INFO","time":"2025-11-04T21:48:37.535+0800","caller":"middleware/decodeToken.go:33","msg":"AuthToken中间件已加载"}
+{"level":"INFO","time":"2025-11-04T21:48:37.535+0800","caller":"websocket/hub.go:70","msg":"WebSocket Hub已初始化"}
+{"level":"INFO","time":"2025-11-04T21:48:37.535+0800","caller":"project/main.go:76","msg":"服务器启动","address":"0.0.0.0:9999","mode":"debug"}
+{"level":"INFO","time":"2025-11-04T21:48:37.535+0800","caller":"gateway/gateway.go:99","msg":"WebSocket服务已启用","endpoint":"/api/ws/connect"}
+{"level":"INFO","time":"2025-11-04T21:48:40.192+0800","caller":"auth/auth.go:133","msg":"用户登录成功","user_id":1,"username":"admin","ip":"127.0.0.1"}
+{"level":"INFO","time":"2025-11-04T21:49:02.839+0800","caller":"middleware/decodeToken.go:62","msg":"Token验证成功, UserInfo:","user_info":{"user_id":1,"username":"admin","email":"sunfujiaihaonv@gmail.com","issued_at":1762264120,"expires_at":1762480120}}
+{"level":"INFO","time":"2025-11-04T21:49:02.840+0800","caller":"websocket/connection.go:87","msg":"WebSocket连接已建立","conn_id":"20251104214902-KKKKKKKK","user_id":1}
+{"level":"INFO","time":"2025-11-04T21:49:02.840+0800","caller":"websocket/hub.go:147","msg":"连接已注册","conn_id":"20251104214902-KKKKKKKK","user_id":1,"total_connections":1}
+{"level":"INFO","time":"2025-11-04T22:18:04.006+0800","caller":"project/main.go:31","msg":"应用启动","mode":"debug","version":"1.0.0"}
+{"level":"INFO","time":"2025-11-04T22:18:04.025+0800","caller":"project/main.go:40","msg":"连接PostgreSQL数据库..."}
+{"level":"INFO","time":"2025-11-04T22:18:04.144+0800","caller":"project/main.go:45","msg":"PostgreSQL连接成功","host":"localhost","port":5432}
+{"level":"INFO","time":"2025-11-04T22:18:04.144+0800","caller":"project/main.go:51","msg":"连接Redis..."}
+{"level":"INFO","time":"2025-11-04T22:18:04.153+0800","caller":"project/main.go:57","msg":"Redis连接成功","host":"localhost","port":6379}
+{"level":"INFO","time":"2025-11-04T22:18:04.154+0800","caller":"project/main.go:71","msg":"初始化API网关..."}
+{"level":"INFO","time":"2025-11-04T22:18:04.154+0800","caller":"middleware/decodeToken.go:14","msg":"CORS中间件已加载"}
+{"level":"INFO","time":"2025-11-04T22:18:04.154+0800","caller":"middleware/decodeToken.go:33","msg":"AuthToken中间件已加载"}
+{"level":"INFO","time":"2025-11-04T22:18:04.154+0800","caller":"websocket/hub.go:70","msg":"WebSocket Hub已初始化"}
+{"level":"INFO","time":"2025-11-04T22:18:04.154+0800","caller":"project/main.go:76","msg":"服务器启动","address":"0.0.0.0:9999","mode":"debug"}
+{"level":"INFO","time":"2025-11-04T22:18:04.154+0800","caller":"gateway/gateway.go:104","msg":"WebSocket服务已启用","endpoint":"/api/ws/connect"}
+{"level":"INFO","time":"2025-11-04T22:25:11.953+0800","caller":"project/main.go:31","msg":"应用启动","mode":"debug","version":"1.0.0"}
+{"level":"INFO","time":"2025-11-04T22:25:11.977+0800","caller":"project/main.go:40","msg":"连接PostgreSQL数据库..."}
+{"level":"INFO","time":"2025-11-04T22:25:12.120+0800","caller":"project/main.go:45","msg":"PostgreSQL连接成功","host":"localhost","port":5432}
+{"level":"INFO","time":"2025-11-04T22:25:12.120+0800","caller":"project/main.go:51","msg":"连接Redis..."}
+{"level":"INFO","time":"2025-11-04T22:25:12.128+0800","caller":"project/main.go:57","msg":"Redis连接成功","host":"localhost","port":6379}
+{"level":"INFO","time":"2025-11-04T22:25:12.130+0800","caller":"project/main.go:71","msg":"初始化API网关..."}
+{"level":"INFO","time":"2025-11-04T22:25:12.131+0800","caller":"middleware/decodeToken.go:14","msg":"CORS中间件已加载"}
+{"level":"INFO","time":"2025-11-04T22:25:12.131+0800","caller":"middleware/decodeToken.go:33","msg":"AuthToken中间件已加载"}
+{"level":"INFO","time":"2025-11-04T22:25:12.131+0800","caller":"websocket/hub.go:70","msg":"WebSocket Hub已初始化"}
+{"level":"INFO","time":"2025-11-04T22:25:12.131+0800","caller":"project/main.go:76","msg":"服务器启动","address":"0.0.0.0:9999","mode":"debug"}
+{"level":"INFO","time":"2025-11-04T22:25:12.131+0800","caller":"gateway/gateway.go:104","msg":"WebSocket服务已启用","endpoint":"/api/ws/connect"}
+{"level":"INFO","time":"2025-11-04T22:26:24.877+0800","caller":"middleware/decodeToken.go:62","msg":"Token验证成功, UserInfo:","user_info":{"user_id":1,"username":"admin","email":"sunfujiaihaonv@gmail.com","issued_at":1762264120,"expires_at":1762480120}}
+{"level":"INFO","time":"2025-11-04T22:26:37.160+0800","caller":"middleware/decodeToken.go:62","msg":"Token验证成功, UserInfo:","user_info":{"user_id":1,"username":"admin","email":"sunfujiaihaonv@gmail.com","issued_at":1762264120,"expires_at":1762480120}}
+{"level":"INFO","time":"2025-11-04T23:10:10.060+0800","caller":"middleware/decodeToken.go:62","msg":"Token验证成功, UserInfo:","user_info":{"user_id":1,"username":"admin","email":"sunfujiaihaonv@gmail.com","issued_at":1762264120,"expires_at":1762480120}}
+{"level":"INFO","time":"2025-11-04T23:10:23.658+0800","caller":"project/main.go:31","msg":"应用启动","mode":"debug","version":"1.0.0"}
+{"level":"INFO","time":"2025-11-04T23:10:23.669+0800","caller":"project/main.go:40","msg":"连接PostgreSQL数据库..."}
+{"level":"INFO","time":"2025-11-04T23:10:23.778+0800","caller":"project/main.go:45","msg":"PostgreSQL连接成功","host":"localhost","port":5432}
+{"level":"INFO","time":"2025-11-04T23:10:23.778+0800","caller":"project/main.go:51","msg":"连接Redis..."}
+{"level":"INFO","time":"2025-11-04T23:10:23.784+0800","caller":"project/main.go:57","msg":"Redis连接成功","host":"localhost","port":6379}
+{"level":"INFO","time":"2025-11-04T23:10:23.785+0800","caller":"project/main.go:71","msg":"初始化API网关..."}
+{"level":"INFO","time":"2025-11-04T23:10:23.785+0800","caller":"middleware/decodeToken.go:14","msg":"CORS中间件已加载"}
+{"level":"INFO","time":"2025-11-04T23:10:23.785+0800","caller":"middleware/decodeToken.go:33","msg":"AuthToken中间件已加载"}
+{"level":"INFO","time":"2025-11-04T23:10:23.785+0800","caller":"websocket/hub.go:70","msg":"WebSocket Hub已初始化"}
+{"level":"INFO","time":"2025-11-04T23:10:23.785+0800","caller":"project/main.go:76","msg":"服务器启动","address":"0.0.0.0:9999","mode":"debug"}
+{"level":"INFO","time":"2025-11-04T23:10:23.785+0800","caller":"gateway/gateway.go:104","msg":"WebSocket服务已启用","endpoint":"/api/ws/connect"}
+{"level":"INFO","time":"2025-11-04T23:10:28.499+0800","caller":"middleware/decodeToken.go:62","msg":"Token验证成功, UserInfo:","user_info":{"user_id":1,"username":"admin","email":"sunfujiaihaonv@gmail.com","issued_at":1762264120,"expires_at":1762480120}}
