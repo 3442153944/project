@@ -1,0 +1,200 @@
+package com.example.filesync.ui.screen.person
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.filesync.network.Request
+import kotlinx.coroutines.launch
+
+@Composable
+fun LoginScreen(
+    onLoginSuccess: (UserInfo) -> Unit,
+    onLoginError: (String) -> Unit
+) {
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var rememberPassword by remember { mutableStateOf(false) }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
+
+    // 加载保存的凭据
+    LaunchedEffect(Unit) {
+        Request.getSavedCredentials()?.let { (savedUsername, savedPassword, remember) ->
+            username = savedUsername
+            password = savedPassword
+            rememberPassword = remember
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = null,
+                    modifier = Modifier.size(80.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+
+                Text(
+                    text = "登录",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("用户名") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Person, contentDescription = null)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !isLoading,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next,
+                        autoCorrect = false
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                    )
+                )
+
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("密码") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Lock, contentDescription = null)
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(
+                                imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                contentDescription = if (passwordVisible) "隐藏密码" else "显示密码"
+                            )
+                        }
+                    },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !isLoading,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { focusManager.clearFocus() }
+                    )
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = rememberPassword,
+                        onCheckedChange = { rememberPassword = it },
+                        enabled = !isLoading
+                    )
+                    Text(
+                        text = "记住密码",
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        scope.launch {
+                            isLoading = true
+                            val loginRequest = LoginRequest(username, password)
+
+                            Request.post<LoginResponse, LoginRequest>("/auth/login", loginRequest) { result ->
+                                isLoading = false
+                                result.onSuccess { response ->
+                                    if (response.code == 200) {
+                                        scope.launch {
+                                            Request.saveCredentials(username, password, rememberPassword)
+                                        }
+
+                                        scope.launch {
+                                            Request.post<VerifyResponse>("/auth/verify") { verifyResult ->
+                                                verifyResult.onSuccess { verifyResponse ->
+                                                    if (verifyResponse.code == 200) {
+                                                        onLoginSuccess(verifyResponse.data.userInfo)
+                                                    } else {
+                                                        onLoginError("登录验证失败")
+                                                    }
+                                                }.onFailure { error ->
+                                                    onLoginError(error.message ?: "验证失败")
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        onLoginError(response.message)
+                                    }
+                                }.onFailure { error ->
+                                    onLoginError(error.message ?: "登录失败")
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    enabled = !isLoading && username.isNotBlank() && password.isNotBlank()
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Login,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("登录", fontSize = 16.sp)
+                    }
+                }
+            }
+        }
+    }
+}

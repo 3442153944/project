@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/redis/go-redis/v9"
 	"os"
 	"path/filepath"
 	_interface "project/internal/handler/files/interface"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"project/internal/base"
