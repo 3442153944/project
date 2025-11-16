@@ -200,10 +200,7 @@ fun StorageCard() {
             LinearProgressIndicator(
                 progress = { 0.8f },
                 modifier = Modifier.fillMaxWidth(),
-                color = if (0.8f > 0.9f)
-                    MaterialTheme.colorScheme.error
-                else
-                    MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.primary
             )
 
             Row(
