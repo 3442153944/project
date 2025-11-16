@@ -22,6 +22,7 @@ import com.example.filesync.network.WebSocket
 import com.example.filesync.ui.screen.HomeScreen
 import com.example.filesync.ui.screen.person.PersonalScreen
 import com.example.filesync.ui.theme.FileSyncTheme
+import com.example.filesync.util.PermissionHelper
 import com.example.filesync.util.RootHelper
 import com.example.filesync.util.rememberPermissionState
 import kotlinx.coroutines.launch
@@ -45,49 +46,127 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FileSyncTheme {
-                var permissionChecked by remember { mutableStateOf(false) }
-
-                if (!permissionChecked) {
-                    PermissionRequestScreen(
-                        onPermissionsGranted = { permissionChecked = true }
-                    )
-                } else {
-                    FileSyncApp()
-                }
+                PermissionCheckWrapper()
             }
         }
     }
 }
 
 /**
+ * 权限检查包装器
+ * 自动检查权限状态，只在需要时显示申请界面
+ */
+@Composable
+fun PermissionCheckWrapper() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var isChecking by remember { mutableStateOf(true) }
+    var needsPermissionRequest by remember { mutableStateOf(false) }
+    var initialPermissionCheck by remember { mutableStateOf<PermissionCheckResult?>(null) }
+
+    // 启动时自动检查所有权限
+    LaunchedEffect(Unit) {
+        scope.launch {
+            // 检查基础权限
+            val hasBasicPermissions = PermissionHelper.hasAllPermissions(context)
+            // 检查文件管理权限
+            val hasManageStorage = PermissionHelper.hasManageExternalStoragePermission()
+            // 检查设备是否已Root
+            val isRooted = RootHelper.isDeviceRooted()
+            // 如果设备已Root，检查是否已授予Root权限
+            val hasRootAccess = if (isRooted) {
+                RootHelper.checkRootAccess()
+            } else {
+                true // 设备未Root，视为不需要Root权限
+            }
+
+            initialPermissionCheck = PermissionCheckResult(
+                hasBasicPermissions = hasBasicPermissions,
+                hasManageStorage = hasManageStorage,
+                isRooted = isRooted,
+                hasRootAccess = hasRootAccess
+            )
+
+            // 如果所有权限都已授予，直接进入应用
+            needsPermissionRequest = !(hasBasicPermissions && hasManageStorage && hasRootAccess)
+            isChecking = false
+        }
+    }
+
+    when {
+        isChecking -> {
+            // 显示加载界面
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator()
+                    Text("正在检查权限...", fontSize = 16.sp)
+                }
+            }
+        }
+        needsPermissionRequest -> {
+            // 显示权限申请界面
+            PermissionRequestScreen(
+                initialCheck = initialPermissionCheck!!,
+                onPermissionsGranted = { needsPermissionRequest = false }
+            )
+        }
+        else -> {
+            // 所有权限已授予，进入主应用
+            FileSyncApp()
+        }
+    }
+}
+
+/**
+ * 权限检查结果
+ */
+data class PermissionCheckResult(
+    val hasBasicPermissions: Boolean,
+    val hasManageStorage: Boolean,
+    val isRooted: Boolean,
+    val hasRootAccess: Boolean
+)
+
+/**
  * 权限申请界面
+ * 只显示未授予的权限，已授予的权限自动跳过
  *
- * 依次申请：
- * 1. 基础权限（存储、网络等）
- * 2. 文件管理权限（All Files Access）
- * 3. Root 权限（如果设备已 Root）
- *
+ * @param initialCheck 初始权限检查结果
  * @param onPermissionsGranted 所有权限授予后的回调
  */
 @Composable
-fun PermissionRequestScreen(onPermissionsGranted: () -> Unit) {
+fun PermissionRequestScreen(
+    initialCheck: PermissionCheckResult,
+    onPermissionsGranted: () -> Unit
+) {
     val scope = rememberCoroutineScope()
-    var rootAvailable by remember { mutableStateOf(false) }
-    var rootGranted by remember { mutableStateOf(false) }
-    var checkingRoot by remember { mutableStateOf(true) }
+    var rootGranted by remember { mutableStateOf(initialCheck.hasRootAccess) }
 
     val permissionState = rememberPermissionState(
+        initialBasicPermissions = initialCheck.hasBasicPermissions,
+        initialManageStorage = initialCheck.hasManageStorage,
         onAllPermissionsGranted = {
-            if (rootAvailable && rootGranted || !rootAvailable) {
+            // 检查是否还需要Root权限
+            if (!initialCheck.isRooted || rootGranted) {
                 onPermissionsGranted()
             }
         }
     )
 
-    // 检查设备是否已 Root
-    LaunchedEffect(Unit) {
-        rootAvailable = RootHelper.isDeviceRooted()
-        checkingRoot = false
+    // 自动检查是否所有权限都已授予
+    LaunchedEffect(permissionState.permissionsGranted, permissionState.manageStorageGranted, rootGranted) {
+        if (permissionState.permissionsGranted &&
+            permissionState.manageStorageGranted &&
+            (!initialCheck.isRooted || rootGranted)) {
+            onPermissionsGranted()
+        }
     }
 
     Box(
@@ -99,58 +178,124 @@ fun PermissionRequestScreen(onPermissionsGranted: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.padding(32.dp)
         ) {
-            Text("权限申请", fontSize = 24.sp)
+            Icon(
+                imageVector = Icons.Default.Security,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "权限申请",
+                fontSize = 24.sp,
+                style = MaterialTheme.typography.headlineMedium
+            )
 
-            // 基础权限（存储、网络等）
-            Button(
-                onClick = { permissionState.requestPermissions() },
-                enabled = !permissionState.permissionsGranted
-            ) {
-                Text(if (permissionState.permissionsGranted) "✓ 基础权限已授予" else "申请基础权限")
+            Text(
+                "应用需要以下权限才能正常运行",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 基础权限（只在未授予时显示）
+            if (!permissionState.permissionsGranted) {
+                PermissionCard(
+                    title = "基础权限",
+                    description = "存储、通讯录、短信、摄像头、麦克风",
+                    isGranted = false,
+                    onRequest = { permissionState.requestPermissions() }
+                )
             }
 
-            // 文件管理权限（All Files Access）
-            Button(
-                onClick = { permissionState.requestManageStorage() },
-                enabled = !permissionState.manageStorageGranted
-            ) {
-                Text(if (permissionState.manageStorageGranted) "✓ 文件管理权限已授予" else "申请文件管理权限")
+            // 文件管理权限（只在未授予时显示）
+            if (!permissionState.manageStorageGranted) {
+                PermissionCard(
+                    title = "文件管理权限",
+                    description = "访问所有文件和文件夹",
+                    isGranted = false,
+                    onRequest = { permissionState.requestManageStorage() }
+                )
             }
 
-            // Root 权限（仅在设备已 Root 时显示）
-            if (!checkingRoot) {
-                if (rootAvailable) {
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                rootGranted = RootHelper.requestRootAccess()
-                            }
-                        },
-                        enabled = !rootGranted
-                    ) {
-                        Text(if (rootGranted) "✓ Root权限已授予" else "申请Root权限")
+            // Root权限（只在设备已Root且未授予时显示）
+            if (initialCheck.isRooted && !rootGranted) {
+                PermissionCard(
+                    title = "Root权限",
+                    description = "访问系统级文件和功能",
+                    isGranted = false,
+                    onRequest = {
+                        scope.launch {
+                            rootGranted = RootHelper.requestRootAccess()
+                        }
                     }
-                } else {
-                    Text(
-                        "设备未Root，将使用普通模式",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                }
+                )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // 如果所有必需权限都已授予，显示提示
+            if (permissionState.permissionsGranted &&
+                permissionState.manageStorageGranted &&
+                (!initialCheck.isRooted || rootGranted)) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "✓ 所有权限已授予，正在进入应用...",
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+}
 
-            // 继续按钮（所有必需权限授予后才可点击）
-            Button(
-                onClick = onPermissionsGranted,
-                enabled = permissionState.permissionsGranted &&
-                        permissionState.manageStorageGranted &&
-                        (rootGranted || !rootAvailable)
+/**
+ * 权限卡片
+ */
+@Composable
+fun PermissionCard(
+    title: String,
+    description: String,
+    isGranted: Boolean,
+    onRequest: () -> Unit
+) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("继续")
+                Icon(
+                    imageVector = if (isGranted) Icons.Default.CheckCircle else Icons.Default.Info,
+                    contentDescription = null,
+                    tint = if (isGranted)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (!isGranted) {
+                Button(
+                    onClick = onRequest,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("授予权限")
+                }
             }
         }
     }

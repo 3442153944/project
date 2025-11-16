@@ -1,6 +1,12 @@
 package gateway
 
 import (
+	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
+
+	"github.com/sunyuanling/server/config"
 	"github.com/sunyuanling/server/internal/handler/auth"
 	"github.com/sunyuanling/server/internal/handler/files"
 	"github.com/sunyuanling/server/internal/handler/test"
@@ -9,11 +15,6 @@ import (
 	"github.com/sunyuanling/server/pkg/logger"
 	"github.com/sunyuanling/server/pkg/response"
 	"github.com/sunyuanling/server/websocket"
-
-	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
-	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 type Gateway struct {
@@ -21,9 +22,10 @@ type Gateway struct {
 	db        *gorm.DB
 	redis     *redis.Client
 	wsHandler *websocket.Handler
+	cfg       *config.Config
 }
 
-func NewGateway(db *gorm.DB, redis *redis.Client) *Gateway {
+func NewGateway(db *gorm.DB, redis *redis.Client, cfg *config.Config) *Gateway {
 	router := gin.Default()
 	err := router.SetTrustedProxies([]string{"127.0.0.1", "192.168.0.0/16", "::1"})
 	if err != nil {
@@ -41,6 +43,7 @@ func NewGateway(db *gorm.DB, redis *redis.Client) *Gateway {
 		db:        db,
 		redis:     redis,
 		wsHandler: wsHandler,
+		cfg:       cfg,
 	}
 }
 
@@ -57,7 +60,7 @@ func (g *Gateway) SetupRoutes() {
 		})
 	})
 
-	// ========== API网关 - 只注册模块入口 ==========
+	// ========== API网关 ==========
 	api := g.router.Group("/api")
 	{
 		// 注册test模块路由
@@ -75,9 +78,9 @@ func (g *Gateway) SetupRoutes() {
 		// 注册WebSocket路由
 		g.wsHandler.RegisterRoutes(api)
 
-		//注册files模块
+		// 注册files模块（传递配置）
 		filesGroup := api.Group("/files")
-		files.NewRouter().RegisterRoutes(filesGroup, g.db, g.redis)
+		files.NewRouter(g.cfg).RegisterRoutes(filesGroup, g.db, g.redis)
 	}
 
 	// ========== 根路径 ==========
@@ -101,9 +104,13 @@ func (g *Gateway) GetRouter() *gin.Engine {
 }
 
 func (g *Gateway) Run(addr string) error {
-	// 启动时输出WebSocket信息
+	// 启动时输出配置信息
 	logger.Info("WebSocket服务已启用",
 		zap.String("endpoint", "/api/ws/connect"),
+	)
+	logger.Info("文件存储配置",
+		zap.String("mode", g.cfg.File.Mode),
+		zap.Strings("allowed_paths", g.cfg.GetAllowedPaths()),
 	)
 	return g.router.Run(addr)
 }

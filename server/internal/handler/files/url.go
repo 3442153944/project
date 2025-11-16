@@ -1,25 +1,30 @@
 package files
 
 import (
-	"github.com/sunyuanling/server/internal/handler"
-	filesHandler "github.com/sunyuanling/server/internal/handler/files/handler"
-
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
+
+	"github.com/sunyuanling/server/config"
+	"github.com/sunyuanling/server/internal/handler"
+	filesHandler "github.com/sunyuanling/server/internal/handler/files/handler"
 )
 
 type Router struct {
+	cfg *config.Config
 }
 
-func NewRouter() handler.ModuleRouter {
-	return &Router{}
+// NewRouter 创建路由（需要传入配置）
+func NewRouter(cfg *config.Config) handler.ModuleRouter {
+	return &Router{
+		cfg: cfg,
+	}
 }
 
-// RegisterRoutes 修正参数顺序：group 在前，db 和 redis 在后
+// RegisterRoutes 注册路由
 func (r *Router) RegisterRoutes(group *gin.RouterGroup, db *gorm.DB, redis *redis.Client) {
-	// 创建处理器实例
-	getAvailableDiskList := filesHandler.NewGetAvailableDiskList(db, redis)
+	// 创建处理器实例（传递配置）
+	getAvailableDiskList := filesHandler.NewGetAvailableDiskList(db, redis, r.cfg)
 	traverseDirectory := filesHandler.NewTraverseDirectory(db, redis)
 
 	// 注册路由

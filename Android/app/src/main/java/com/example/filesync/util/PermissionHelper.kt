@@ -1,7 +1,6 @@
 package com.example.filesync.util
 
 import android.Manifest
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -13,6 +12,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 
 object PermissionHelper {
 
@@ -54,7 +54,7 @@ object PermissionHelper {
     fun openManageExternalStorageSettings(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                data = Uri.parse("package:${context.packageName}")
+                data = "package:${context.packageName}".toUri()
             }
             context.startActivity(intent)
         }
@@ -63,11 +63,13 @@ object PermissionHelper {
 
 @Composable
 fun rememberPermissionState(
+    initialBasicPermissions: Boolean = false,
+    initialManageStorage: Boolean = false,
     onAllPermissionsGranted: () -> Unit = {}
 ): PermissionState {
     val context = androidx.compose.ui.platform.LocalContext.current
-    var permissionsGranted by remember { mutableStateOf(PermissionHelper.hasAllPermissions(context)) }
-    var manageStorageGranted by remember { mutableStateOf(PermissionHelper.hasManageExternalStoragePermission()) }
+    var permissionsGranted by remember { mutableStateOf(initialBasicPermissions) }
+    var manageStorageGranted by remember { mutableStateOf(initialManageStorage) }
 
     // 普通权限申请
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -83,13 +85,14 @@ fun rememberPermissionState(
     val manageStorageLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
+        // 重新检查权限状态
         manageStorageGranted = PermissionHelper.hasManageExternalStoragePermission()
         if (permissionsGranted && manageStorageGranted) {
             onAllPermissionsGranted()
         }
     }
 
-    return remember {
+    return remember(permissionsGranted, manageStorageGranted) {
         PermissionState(
             permissionsGranted = permissionsGranted,
             manageStorageGranted = manageStorageGranted,
@@ -99,7 +102,7 @@ fun rememberPermissionState(
             requestManageStorage = {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                        data = Uri.parse("package:${context.packageName}")
+                        data = "package:${context.packageName}".toUri()
                     }
                     manageStorageLauncher.launch(intent)
                 }

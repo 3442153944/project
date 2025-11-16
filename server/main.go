@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+
+	"go.uber.org/zap"
+
 	"github.com/sunyuanling/server/config"
 	"github.com/sunyuanling/server/gateway"
 	"github.com/sunyuanling/server/pkg/database"
 	"github.com/sunyuanling/server/pkg/logger"
 	token "github.com/sunyuanling/server/pkg/tokn"
-	"log"
-
-	"go.uber.org/zap"
 )
 
 func main() {
@@ -32,10 +33,12 @@ func main() {
 		zap.String("mode", cfg.Server.Mode),
 		zap.String("version", "1.0.0"),
 	)
-	//初始化token系统
+
+	// 初始化token系统
 	if err := token.InitGlobalTokenManager(cfg); err != nil {
 		logger.Fatal("token初始化失败", zap.Error(err))
 	}
+
 	// ========== 3. 连接PostgreSQL ==========
 	logger.Info("连接PostgreSQL数据库...")
 	db, err := database.NewPostgresDB(cfg.Database)
@@ -67,17 +70,25 @@ func main() {
 	}
 	logger.Debug("Redis Ping测试", zap.String("response", pong))
 
-	// ========== 5. 初始化网关 ==========
+	// ========== 5. 初始化网关（传递配置） ==========
 	logger.Info("初始化API网关...")
-	gw := gateway.NewGateway(db, rdb)
+	gw := gateway.NewGateway(db, rdb, cfg)
+	if gw == nil {
+		logger.Fatal("网关初始化失败")
+	}
 	gw.SetupRoutes()
+
 	// ========== 6. 启动服务器 ==========
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	logger.Info("服务器启动",
 		zap.String("address", addr),
 		zap.String("mode", cfg.Server.Mode),
+		zap.String("file_mode", cfg.File.Mode),
+		zap.Strings("allowed_paths", cfg.GetAllowedPaths()),
 	)
-	fmt.Printf("\n 服务器运行在 http://localhost:%d\n\n", cfg.Server.Port)
+	fmt.Printf("\n🚀 服务器运行在 http://localhost:%d\n", cfg.Server.Port)
+	fmt.Printf("📁 文件存储模式: %s\n", cfg.File.Mode)
+	fmt.Printf("💾 允许的存储路径: %v\n\n", cfg.GetAllowedPaths())
 
 	if err := gw.Run(addr); err != nil {
 		logger.Fatal("服务器启动失败", zap.Error(err))
