@@ -11,3 +11,18 @@ type GetAvailableDiskList interface {
 type TraverseDirectory interface {
 	HandlerPOST(c *gin.Context)
 }
+
+// GetFile 获取文件
+type GetFile interface {
+	HandlerPOST(c *gin.Context)
+}
+
+// FileMsg 文件传参实时信息
+type FileMsg interface {
+	HandlerPOST(c *gin.Context)
+}
+
+// FileUpload 文件上传
+type FileUpload interface {
+	HandlerPOST(c *gin.Context)
+}

@@ -26,8 +26,10 @@ func (r *Router) RegisterRoutes(group *gin.RouterGroup, db *gorm.DB, redis *redi
 	// 创建处理器实例（传递配置）
 	getAvailableDiskList := filesHandler.NewGetAvailableDiskList(db, redis, r.cfg)
 	traverseDirectory := filesHandler.NewTraverseDirectory(db, redis)
+	getFile := filesHandler.NewGetFile(db, redis, r.cfg)
 
 	// 注册路由
 	group.POST("/available-disks", getAvailableDiskList.HandlerPOST)
 	group.POST("/traverse-directory", traverseDirectory.HandlerPOST)
+	group.POST("/get-file", getFile.HandlerPOST)
 }
