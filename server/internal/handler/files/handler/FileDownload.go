@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/redis/go-redis/v9"
 	tokenFunc "github.com/sunyuanling/server/pkg/tokn"
 	"io"
 	"os"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"github.com/sunyuanling/server/config"
 	"github.com/sunyuanling/server/internal/base"
 	_interface "github.com/sunyuanling/server/internal/handler/files/interface"

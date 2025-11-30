@@ -3,47 +3,48 @@ package websocket
 import (
 	"context"
 	"encoding/json"
+	"net/url"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/sunyuanling/server/pkg/logger"
-
 	"github.com/gorilla/websocket"
+	"github.com/sunyuanling/server/pkg/logger"
 	"go.uber.org/zap"
 )
 
-// Client WebSocket客户端（支持自动重连）
+// Client WebSocket客户端
 type Client struct {
-	URL           string                 // WebSocket服务器URL
-	UserID        uint                   // 用户ID
-	Token         string                 // 认证Token
-	conn          *websocket.Conn        // WebSocket连接
-	sendChan      chan []byte            // 发送通道
-	receiveChan   chan []byte            // 接收通道
-	isConnected   bool                   // 连接状态
-	mu            sync.RWMutex           // 读写锁
-	ctx           context.Context        // 上下文
-	cancel        context.CancelFunc     // 取消函数
-	reconnectWait time.Duration          // 重连等待时间
-	maxReconnect  int                    // 最大重连次数
-	onConnect     func()                 // 连接成功回调
-	onDisconnect  func()                 // 断开连接回调
-	onMessage     func([]byte)           // 消息回调
-	metadata      map[string]interface{} // 元数据
+	URL           string
+	UserID        uint
+	Token         string
+	Device        *DeviceInfo
+	conn          *websocket.Conn
+	sendChan      chan []byte
+	receiveChan   chan []byte
+	isConnected   bool
+	mu            sync.RWMutex
+	ctx           context.Context
+	cancel        context.CancelFunc
+	reconnectWait time.Duration
+	maxReconnect  int
+	onConnect     func()
+	onDisconnect  func()
+	onMessage     func(*Message)
+	metadata      map[string]interface{}
 }
 
 // ClientConfig 客户端配置
 type ClientConfig struct {
-	URL             string        // WebSocket服务器URL
-	UserID          uint          // 用户ID
-	Token           string        // 认证Token
-	ReconnectWait   time.Duration // 重连等待时间
-	MaxReconnect    int           // 最大重连次数
-	HeartbeatPeriod time.Duration // 心跳周期
+	URL           string
+	UserID        uint
+	Token         string
+	Device        *DeviceInfo
+	ReconnectWait time.Duration
+	MaxReconnect  int
 }
 
-// NewClient 创建新的WebSocket客户端
+// NewClient 创建客户端
 func NewClient(config *ClientConfig) *Client {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -54,10 +55,19 @@ func NewClient(config *ClientConfig) *Client {
 		config.MaxReconnect = 10
 	}
 
+	if config.Device == nil {
+		config.Device = &DeviceInfo{
+			DeviceID:   generateUUID(),
+			DeviceType: DeviceTypeUnknown,
+			Status:     DeviceStatusOnline,
+		}
+	}
+
 	return &Client{
 		URL:           config.URL,
 		UserID:        config.UserID,
 		Token:         config.Token,
+		Device:        config.Device,
 		sendChan:      make(chan []byte, 256),
 		receiveChan:   make(chan []byte, 256),
 		ctx:           ctx,
@@ -68,7 +78,7 @@ func NewClient(config *ClientConfig) *Client {
 	}
 }
 
-// Connect 连接到WebSocket服务器
+// Connect 连接到服务器
 func (c *Client) Connect() error {
 	return c.connectWithRetry()
 }
@@ -79,14 +89,13 @@ func (c *Client) connectWithRetry() error {
 	for {
 		err := c.doConnect()
 		if err == nil {
-			// 连接成功
 			retryCount = 0
 			c.startReadWrite()
 			return nil
 		}
 
 		if retryCount >= c.maxReconnect {
-			logger.Error("达到最大重连次数，放弃连接",
+			logger.Error("达到最大重连次数",
 				zap.Uint("user_id", c.UserID),
 				zap.Int("max_reconnect", c.maxReconnect),
 			)
@@ -99,7 +108,7 @@ func (c *Client) connectWithRetry() error {
 			wait = 60 * time.Second
 		}
 
-		logger.Warn("WebSocket连接失败，准备重试",
+		logger.Warn("连接失败，准备重试",
 			zap.Uint("user_id", c.UserID),
 			zap.Int("retry_count", retryCount),
 			zap.Duration("wait", wait),
@@ -117,18 +126,31 @@ func (c *Client) connectWithRetry() error {
 
 // doConnect 执行连接
 func (c *Client) doConnect() error {
+	// 构建URL参数
+	u, err := url.Parse(c.URL)
+	if err != nil {
+		return err
+	}
+
+	q := u.Query()
+	q.Set("device_id", c.Device.DeviceID)
+	q.Set("device_type", string(c.Device.DeviceType))
+	q.Set("device_name", c.Device.DeviceName)
+	q.Set("platform", c.Device.Platform)
+	q.Set("app_version", c.Device.AppVersion)
+	u.RawQuery = q.Encode()
+
 	// 设置请求头
 	header := make(map[string][]string)
 	header["Token"] = []string{c.Token}
 	header["User-ID"] = []string{strconv.Itoa(int(c.UserID))}
-	println("请求头:", header)
 
 	// 建立连接
 	dialer := websocket.Dialer{
 		HandshakeTimeout: 10 * time.Second,
 	}
 
-	conn, _, err := dialer.Dial(c.URL, header)
+	conn, _, err := dialer.Dial(u.String(), header)
 	if err != nil {
 		return err
 	}
@@ -141,9 +163,9 @@ func (c *Client) doConnect() error {
 	logger.Info("WebSocket客户端连接成功",
 		zap.String("url", c.URL),
 		zap.Uint("user_id", c.UserID),
+		zap.String("device_id", c.Device.DeviceID),
 	)
 
-	// 触发连接成功回调
 	if c.onConnect != nil {
 		go c.onConnect()
 	}
@@ -160,14 +182,12 @@ func (c *Client) startReadWrite() {
 
 // readPump 读取消息
 func (c *Client) readPump() {
-	defer func() {
-		c.handleDisconnect()
-	}()
+	defer c.handleDisconnect()
 
-	c.conn.SetReadLimit(maxMessageSize)
-	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.conn.SetReadLimit(MaxMessageSize)
+	_ = c.conn.SetReadDeadline(time.Now().Add(PongWait))
 	c.conn.SetPongHandler(func(string) error {
-		c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		_ = c.conn.SetReadDeadline(time.Now().Add(PongWait))
 		return nil
 	})
 
@@ -176,7 +196,7 @@ func (c *Client) readPump() {
 		case <-c.ctx.Done():
 			return
 		default:
-			_, message, err := c.conn.ReadMessage()
+			_, data, err := c.conn.ReadMessage()
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 					logger.Error("WebSocket读取错误",
@@ -187,16 +207,19 @@ func (c *Client) readPump() {
 				return
 			}
 
-			// 处理消息
+			// 解析消息
 			if c.onMessage != nil {
-				go c.onMessage(message)
+				var msg Message
+				if err := json.Unmarshal(data, &msg); err == nil {
+					go c.onMessage(&msg)
+				}
 			}
 
 			// 放入接收通道
 			select {
-			case c.receiveChan <- message:
+			case c.receiveChan <- data:
 			default:
-				logger.Warn("接收通道已满，丢弃消息",
+				logger.Warn("接收通道已满",
 					zap.Uint("user_id", c.UserID),
 				)
 			}
@@ -206,7 +229,7 @@ func (c *Client) readPump() {
 
 // writePump 写入消息
 func (c *Client) writePump() {
-	ticker := time.NewTicker(pingPeriod)
+	ticker := time.NewTicker(PingPeriod)
 	defer func() {
 		ticker.Stop()
 		c.handleDisconnect()
@@ -215,9 +238,9 @@ func (c *Client) writePump() {
 	for {
 		select {
 		case message, ok := <-c.sendChan:
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			_ = c.conn.SetWriteDeadline(time.Now().Add(WriteWait))
 			if !ok {
-				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				_ = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
@@ -230,7 +253,7 @@ func (c *Client) writePump() {
 			}
 
 		case <-ticker.C:
-			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			_ = c.conn.SetWriteDeadline(time.Now().Add(WriteWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
@@ -241,7 +264,7 @@ func (c *Client) writePump() {
 	}
 }
 
-// heartbeatPump 心跳发送
+// heartbeatPump 发送心跳
 func (c *Client) heartbeatPump() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
@@ -249,12 +272,12 @@ func (c *Client) heartbeatPump() {
 	for {
 		select {
 		case <-ticker.C:
-			msg := Message{
-				Type:      MessageTypeHeartbeat,
-				From:      c.UserID,
-				Timestamp: time.Now().Unix(),
+			msg := NewMessage(MessageTypeHeartbeat, nil)
+			msg.From = &Sender{
+				UserID:   c.UserID,
+				DeviceID: c.Device.DeviceID,
 			}
-			c.SendMessage(&msg)
+			_ = c.SendMessage(msg)
 
 		case <-c.ctx.Done():
 			return
@@ -272,16 +295,15 @@ func (c *Client) handleDisconnect() {
 	c.isConnected = false
 	c.mu.Unlock()
 
-	// 关闭连接
 	if c.conn != nil {
-		c.conn.Close()
+		_ = c.conn.Close()
 	}
 
 	logger.Warn("WebSocket客户端断开连接",
 		zap.Uint("user_id", c.UserID),
+		zap.String("device_id", c.Device.DeviceID),
 	)
 
-	// 触发断开连接回调
 	if c.onDisconnect != nil {
 		go c.onDisconnect()
 	}
@@ -293,15 +315,12 @@ func (c *Client) handleDisconnect() {
 			return
 		default:
 			time.Sleep(c.reconnectWait)
-			err := c.connectWithRetry()
-			if err != nil {
-				return
-			}
+			_ = c.connectWithRetry()
 		}
 	}()
 }
 
-// Send 发送消息
+// Send 发送原始数据
 func (c *Client) Send(data []byte) error {
 	c.mu.RLock()
 	if !c.isConnected {
@@ -318,7 +337,7 @@ func (c *Client) Send(data []byte) error {
 	}
 }
 
-// SendMessage 发送消息对象
+// SendMessage 发送消息
 func (c *Client) SendMessage(msg *Message) error {
 	data, err := json.Marshal(msg)
 	if err != nil {
@@ -327,16 +346,29 @@ func (c *Client) SendMessage(msg *Message) error {
 	return c.Send(data)
 }
 
-// SendJSON 发送JSON数据
-func (c *Client) SendJSON(v interface{}) error {
-	data, err := json.Marshal(v)
-	if err != nil {
-		return err
+// SendToUser 发送消息给用户
+func (c *Client) SendToUser(userID uint, msgType MessageType, content interface{}) error {
+	msg := NewMessage(msgType, content)
+	msg.From = &Sender{
+		UserID:   c.UserID,
+		DeviceID: c.Device.DeviceID,
 	}
-	return c.Send(data)
+	msg.Target = NewTargetUser(userID)
+	return c.SendMessage(msg)
 }
 
-// Receive 接收消息
+// SendToDevice 发送消息给设备
+func (c *Client) SendToDevice(deviceID string, msgType MessageType, content interface{}) error {
+	msg := NewMessage(msgType, content)
+	msg.From = &Sender{
+		UserID:   c.UserID,
+		DeviceID: c.Device.DeviceID,
+	}
+	msg.Target = NewTargetDevice(deviceID)
+	return c.SendMessage(msg)
+}
+
+// Receive 接收消息通道
 func (c *Client) Receive() <-chan []byte {
 	return c.receiveChan
 }
@@ -349,7 +381,7 @@ func (c *Client) IsConnected() bool {
 }
 
 // SetEventHandlers 设置事件处理器
-func (c *Client) SetEventHandlers(onConnect, onDisconnect func(), onMessage func([]byte)) {
+func (c *Client) SetEventHandlers(onConnect, onDisconnect func(), onMessage func(*Message)) {
 	c.onConnect = onConnect
 	c.onDisconnect = onDisconnect
 	c.onMessage = onMessage
@@ -370,13 +402,23 @@ func (c *Client) GetMetadata(key string) (interface{}, bool) {
 	return value, exists
 }
 
+// GetDeviceInfo 获取设备信息
+func (c *Client) GetDeviceInfo() *DeviceInfo {
+	return c.Device
+}
+
+// SetDeviceStatus 设置设备状态
+func (c *Client) SetDeviceStatus(status DeviceStatus) {
+	c.Device.Status = status
+}
+
 // Close 关闭客户端
 func (c *Client) Close() {
 	c.cancel()
 
 	c.mu.Lock()
 	if c.conn != nil {
-		c.conn.Close()
+		_ = c.conn.Close()
 	}
 	c.isConnected = false
 	c.mu.Unlock()
@@ -386,10 +428,11 @@ func (c *Client) Close() {
 
 	logger.Info("WebSocket客户端已关闭",
 		zap.Uint("user_id", c.UserID),
+		zap.String("device_id", c.Device.DeviceID),
 	)
 }
 
-// Reconnect 手动触发重连
+// Reconnect 手动重连
 func (c *Client) Reconnect() {
 	c.mu.Lock()
 	if c.isConnected {
@@ -398,5 +441,7 @@ func (c *Client) Reconnect() {
 	}
 	c.mu.Unlock()
 
-	go c.connectWithRetry()
+	go func() {
+		_ = c.connectWithRetry()
+	}()
 }

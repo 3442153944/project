@@ -14,11 +14,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.filesync.data.sync.WebSocketManager
 import com.example.filesync.network.Request
-import com.example.filesync.network.WebSocket
 import com.example.filesync.ui.screen.HomeScreen
 import com.example.filesync.ui.screen.person.PersonalScreen
 import com.example.filesync.ui.theme.FileSyncTheme
@@ -37,11 +41,10 @@ class MainActivity : ComponentActivity() {
 
         // 初始化网络请求模块（必须在使用 Request 前调用）
         Request.init(this)
-        // 初始化 WebSocket 模块
-        WebSocket.init()
 
-        // 可选：设置自定义 baseUrl
-        // Request.setBaseUrl("https://www.sunyuanling.cn")
+        // 可选：设置自定义服务器地址
+        // Request.baseUrl = "http://192.168.31.100:9999/api"
+        // WebSocketManager.setServerUrl("ws://192.168.31.100:9999/api/ws/connect")
 
         enableEdgeToEdge()
         setContent {
@@ -304,11 +307,41 @@ fun PermissionCard(
 /**
  * 主应用界面
  * 包含底部导航栏和四个主要页面
+ * 管理 WebSocket 连接的生命周期
  */
 @PreviewScreenSizes
 @Composable
 fun FileSyncApp() {
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
+
+    // 监听应用前后台状态，管理 WebSocket 连接
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> {
+                    // 应用进入前台，连接 WebSocket
+                    scope.launch {
+                        if (Request.hasToken()) {
+                            WebSocketManager.connect()
+                        }
+                    }
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    // 应用进入后台，断开 WebSocket
+                    WebSocketManager.disconnect()
+                }
+                else -> {}
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     NavigationSuiteScaffold(
         navigationSuiteItems = {

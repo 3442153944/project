@@ -2,12 +2,13 @@ package websocket
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
-	"github.com/sunyuanling/server/pkg/logger"
-
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/sunyuanling/server/pkg/logger"
 	"go.uber.org/zap"
 )
 
@@ -15,58 +16,44 @@ import (
 type Connection struct {
 	ID            string                 // 连接ID
 	UserID        uint                   // 用户ID
+	Device        *DeviceInfo            // 设备信息
 	Conn          *websocket.Conn        // WebSocket连接
 	SendChan      chan []byte            // 发送消息通道
 	Hub           *Hub                   // 连接池管理器
 	IsAlive       bool                   // 连接是否存活
+	ConnectedAt   time.Time              // 连接时间
 	LastHeartbeat time.Time              // 最后心跳时间
+	IP            string                 // 客户端IP
 	mu            sync.RWMutex           // 读写锁
 	closeChan     chan struct{}          // 关闭信号
 	closeOnce     sync.Once              // 确保只关闭一次
 	metadata      map[string]interface{} // 连接元数据
 }
 
-// Message WebSocket消息结构
-type Message struct {
-	Type      string          `json:"type"`      // 消息类型
-	From      uint            `json:"from"`      // 发送者ID
-	To        []uint          `json:"to"`        // 接收者ID列表
-	Content   json.RawMessage `json:"content"`   // 消息内容
-	Timestamp int64           `json:"timestamp"` // 时间戳
-}
-
-// MessageType 消息类型常量
-const (
-	MessageTypeText      = "text"      // 文本消息
-	MessageTypeBroadcast = "broadcast" // 广播消息
-	MessageTypeSystem    = "system"    // 系统消息
-	MessageTypeHeartbeat = "heartbeat" // 心跳消息
-	MessageTypeAck       = "ack"       // 确认消息
-)
-
-// 配置常量
-const (
-	// 写入超时
-	writeWait = 10 * time.Second
-	// 心跳超时
-	pongWait = 60 * time.Second
-	// 心跳发送间隔
-	pingPeriod = (pongWait * 9) / 10
-	// 最大消息大小
-	maxMessageSize = 512 * 1024 // 512KB
-	// 发送缓冲区大小
-	sendChannelSize = 256
-)
-
 // NewConnection 创建新的WebSocket连接
-func NewConnection(userID uint, conn *websocket.Conn, hub *Hub) *Connection {
+func NewConnection(userID uint, conn *websocket.Conn, hub *Hub, device *DeviceInfo) *Connection {
+	if device == nil {
+		device = &DeviceInfo{
+			DeviceID:   generateUUID(),
+			DeviceType: DeviceTypeUnknown,
+			Status:     DeviceStatusOnline,
+		}
+	}
+
+	// 确保设备有ID
+	if device.DeviceID == "" {
+		device.DeviceID = generateUUID()
+	}
+
 	return &Connection{
-		ID:            generateConnectionID(),
+		ID:            generateConnectionID(userID),
 		UserID:        userID,
+		Device:        device,
 		Conn:          conn,
-		SendChan:      make(chan []byte, sendChannelSize),
+		SendChan:      make(chan []byte, SendChannelSize),
 		Hub:           hub,
 		IsAlive:       true,
+		ConnectedAt:   time.Now(),
 		LastHeartbeat: time.Now(),
 		closeChan:     make(chan struct{}),
 		metadata:      make(map[string]interface{}),
@@ -78,16 +65,16 @@ func (c *Connection) Start() {
 	// 注册到连接池
 	c.Hub.Register(c)
 
-	// 启动读协程
+	// 启动协程
 	go c.readPump()
-	// 启动写协程
 	go c.writePump()
-	// 启动心跳检测
 	go c.heartbeatCheck()
 
 	logger.Info("WebSocket连接已建立",
 		zap.String("conn_id", c.ID),
 		zap.Uint("user_id", c.UserID),
+		zap.String("device_id", c.Device.DeviceID),
+		zap.String("device_type", string(c.Device.DeviceType)),
 	)
 }
 
@@ -97,11 +84,10 @@ func (c *Connection) readPump() {
 		c.Close()
 	}()
 
-	// 设置读取限制
-	c.Conn.SetReadLimit(maxMessageSize)
-	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.Conn.SetReadLimit(MaxMessageSize)
+	_ = c.Conn.SetReadDeadline(time.Now().Add(PongWait))
 	c.Conn.SetPongHandler(func(string) error {
-		c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+		_ = c.Conn.SetReadDeadline(time.Now().Add(PongWait))
 		c.updateHeartbeat()
 		return nil
 	})
@@ -111,7 +97,6 @@ func (c *Connection) readPump() {
 		case <-c.closeChan:
 			return
 		default:
-			// 读取消息
 			messageType, data, err := c.Conn.ReadMessage()
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -123,7 +108,6 @@ func (c *Connection) readPump() {
 				return
 			}
 
-			// 处理不同类型的消息
 			switch messageType {
 			case websocket.TextMessage:
 				c.handleTextMessage(data)
@@ -136,7 +120,7 @@ func (c *Connection) readPump() {
 
 // writePump 写入消息
 func (c *Connection) writePump() {
-	ticker := time.NewTicker(pingPeriod)
+	ticker := time.NewTicker(PingPeriod)
 	defer func() {
 		ticker.Stop()
 		c.Close()
@@ -145,14 +129,12 @@ func (c *Connection) writePump() {
 	for {
 		select {
 		case message, ok := <-c.SendChan:
-			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			_ = c.Conn.SetWriteDeadline(time.Now().Add(WriteWait))
 			if !ok {
-				// 通道已关闭
-				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				_ = c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
-			// 写入消息
 			if err := c.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				logger.Error("WebSocket写入错误",
 					zap.String("conn_id", c.ID),
@@ -161,17 +143,18 @@ func (c *Connection) writePump() {
 				return
 			}
 
-			// 批量发送缓冲区中的消息
+			// 批量发送
 			n := len(c.SendChan)
 			for i := 0; i < n; i++ {
 				if msg, ok := <-c.SendChan; ok {
-					c.Conn.WriteMessage(websocket.TextMessage, msg)
+					if err := c.Conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+						return
+					}
 				}
 			}
 
 		case <-ticker.C:
-			// 发送心跳
-			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			_ = c.Conn.SetWriteDeadline(time.Now().Add(WriteWait))
 			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
@@ -194,46 +177,38 @@ func (c *Connection) handleTextMessage(data []byte) {
 		return
 	}
 
-	// 设置发送者ID
-	msg.From = c.UserID
+	// 设置发送者信息
+	msg.From = &Sender{
+		UserID:   c.UserID,
+		ConnID:   c.ID,
+		DeviceID: c.Device.DeviceID,
+	}
 	msg.Timestamp = time.Now().Unix()
 
 	// 根据消息类型处理
 	switch msg.Type {
 	case MessageTypeHeartbeat:
 		c.handleHeartbeat()
-	case MessageTypeBroadcast:
-		c.Hub.Broadcast(&msg)
-	case MessageTypeText:
-		c.Hub.Route(&msg)
 	default:
-		// 交给Hub的消息处理器处理
-		if handler, ok := c.Hub.messageHandlers[msg.Type]; ok {
-			handler(c, &msg)
-		} else {
-			c.sendError("未知的消息类型")
-		}
+		c.Hub.RouteMessage(c, &msg)
 	}
 }
 
 // handleBinaryMessage 处理二进制消息
 func (c *Connection) handleBinaryMessage(data []byte) {
-	// 处理二进制数据（如文件传输）
 	logger.Debug("收到二进制消息",
 		zap.String("conn_id", c.ID),
 		zap.Int("size", len(data)),
 	)
 }
 
-// handleHeartbeat 处理心跳消息
+// handleHeartbeat 处理心跳
 func (c *Connection) handleHeartbeat() {
 	c.updateHeartbeat()
-	// 回复心跳
-	ack := Message{
-		Type:      MessageTypeAck,
-		Timestamp: time.Now().Unix(),
-	}
-	c.SendMessage(&ack)
+	ack := NewMessage(MessageTypeAck, map[string]interface{}{
+		"type": "heartbeat_ack",
+	})
+	_ = c.SendMessage(ack)
 }
 
 // heartbeatCheck 心跳检测
@@ -245,10 +220,10 @@ func (c *Connection) heartbeatCheck() {
 		select {
 		case <-ticker.C:
 			c.mu.RLock()
-			lastHeartbeat := c.LastHeartbeat
+			lastHB := c.LastHeartbeat
 			c.mu.RUnlock()
 
-			if time.Since(lastHeartbeat) > 90*time.Second {
+			if time.Since(lastHB) > 90*time.Second {
 				logger.Warn("连接心跳超时",
 					zap.String("conn_id", c.ID),
 					zap.Uint("user_id", c.UserID),
@@ -263,15 +238,6 @@ func (c *Connection) heartbeatCheck() {
 	}
 }
 
-// SendMessage 发送消息
-func (c *Connection) SendMessage(msg *Message) error {
-	data, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
-	return c.Send(data)
-}
-
 // Send 发送原始数据
 func (c *Connection) Send(data []byte) error {
 	c.mu.RLock()
@@ -284,9 +250,18 @@ func (c *Connection) Send(data []byte) error {
 	select {
 	case c.SendChan <- data:
 		return nil
-	case <-time.After(time.Second * 5):
+	case <-time.After(5 * time.Second):
 		return ErrSendTimeout
 	}
+}
+
+// SendMessage 发送消息对象
+func (c *Connection) SendMessage(msg *Message) error {
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	return c.Send(data)
 }
 
 // SendJSON 发送JSON数据
@@ -300,12 +275,10 @@ func (c *Connection) SendJSON(v interface{}) error {
 
 // sendError 发送错误消息
 func (c *Connection) sendError(errMsg string) {
-	msg := Message{
-		Type:      MessageTypeSystem,
-		Content:   json.RawMessage(`{"error":"` + errMsg + `"}`),
-		Timestamp: time.Now().Unix(),
-	}
-	c.SendMessage(&msg)
+	msg := NewMessage(MessageTypeSystem, map[string]interface{}{
+		"error": errMsg,
+	})
+	_ = c.SendMessage(msg)
 }
 
 // updateHeartbeat 更新心跳时间
@@ -313,6 +286,20 @@ func (c *Connection) updateHeartbeat() {
 	c.mu.Lock()
 	c.LastHeartbeat = time.Now()
 	c.mu.Unlock()
+}
+
+// SetDeviceStatus 设置设备状态
+func (c *Connection) SetDeviceStatus(status DeviceStatus) {
+	c.mu.Lock()
+	c.Device.Status = status
+	c.mu.Unlock()
+}
+
+// GetDeviceStatus 获取设备状态
+func (c *Connection) GetDeviceStatus() DeviceStatus {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.Device.Status
 }
 
 // SetMetadata 设置元数据
@@ -330,41 +317,50 @@ func (c *Connection) GetMetadata(key string) (interface{}, bool) {
 	return value, exists
 }
 
+// GetInfo 获取连接信息
+func (c *Connection) GetInfo() *ConnectionInfo {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return &ConnectionInfo{
+		ConnID:        c.ID,
+		UserID:        c.UserID,
+		Device:        c.Device,
+		IP:            c.IP,
+		ConnectedAt:   c.ConnectedAt,
+		LastHeartbeat: c.LastHeartbeat,
+		Status:        c.Device.Status,
+	}
+}
+
 // Close 关闭连接
 func (c *Connection) Close() {
 	c.closeOnce.Do(func() {
 		c.mu.Lock()
 		c.IsAlive = false
+		c.Device.Status = DeviceStatusOffline
 		c.mu.Unlock()
 
-		// 从连接池中注销
 		c.Hub.Unregister(c)
 
-		// 关闭通道
 		close(c.closeChan)
 		close(c.SendChan)
 
-		// 关闭WebSocket连接
-		c.Conn.Close()
+		_ = c.Conn.Close()
 
 		logger.Info("WebSocket连接已关闭",
 			zap.String("conn_id", c.ID),
 			zap.Uint("user_id", c.UserID),
+			zap.String("device_id", c.Device.DeviceID),
 		)
 	})
 }
 
 // generateConnectionID 生成连接ID
-func generateConnectionID() string {
-	return time.Now().Format("20060102150405") + "-" + generateRandomString(8)
+func generateConnectionID(userID uint) string {
+	return fmt.Sprintf("conn-%d-%s", userID, uuid.New().String()[:8])
 }
 
-// generateRandomString 生成随机字符串
-func generateRandomString(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
-	}
-	return string(b)
+// generateUUID 生成UUID
+func generateUUID() string {
+	return uuid.New().String()
 }
