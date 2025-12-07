@@ -24,6 +24,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.filesync.data.sync.WebSocketManager
 import com.example.filesync.network.Request
 import com.example.filesync.ui.screen.HomeScreen
+import com.example.filesync.ui.screen.files.FileScreen
 import com.example.filesync.ui.screen.person.PersonalScreen
 import com.example.filesync.ui.theme.FileSyncTheme
 import com.example.filesync.util.PermissionHelper
@@ -358,7 +359,7 @@ fun FileSyncApp() {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
             when (currentDestination) {
                 AppDestinations.HOME -> HomeScreen(modifier = Modifier.padding(innerPadding))
-                AppDestinations.FILES -> PlaceholderScreen("文件", Modifier.padding(innerPadding))
+                AppDestinations.FILES -> FileScreen(Modifier.padding(innerPadding))
                 AppDestinations.MONITOR -> PlaceholderScreen("监控", Modifier.padding(innerPadding))
                 AppDestinations.PERSONAL -> PersonalScreen(modifier = Modifier.padding(innerPadding))
             }

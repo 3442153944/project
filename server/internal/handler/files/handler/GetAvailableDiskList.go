@@ -463,13 +463,13 @@ func (h *getAvailableDiskList) checkIfSSD(device string) bool {
 	return false
 }
 
-// normalizeDiskPath 规范化磁盘路径
+// normalizeDiskPath 规范化磁盘路
 func (h *getAvailableDiskList) normalizeDiskPath(path string) string {
 	if runtime.GOOS == "windows" {
-		// Windows: 提取盘符（如 C:）
+		// Windows: 提取盘符（如 C:）并加上斜杠
 		vol := filepath.VolumeName(path)
 		if vol != "" {
-			return strings.ToUpper(vol)
+			return strings.ToUpper(vol) + "/"
 		}
 	}
 	// Linux: 使用完整路径
@@ -478,9 +478,16 @@ func (h *getAvailableDiskList) normalizeDiskPath(path string) string {
 
 // isPathInList 检查路径是否在列表中
 func (h *getAvailableDiskList) isPathInList(path string, list []string) bool {
-	path = strings.ToUpper(path)
+	// 规范化待检查的路径
+	path = strings.ToUpper(strings.TrimSuffix(path, "/"))
+	path = strings.TrimSuffix(path, "\\")
+
 	for _, item := range list {
-		if strings.ToUpper(item) == path {
+		// 规范化列表中的路径
+		itemNorm := strings.ToUpper(strings.TrimSuffix(item, "/"))
+		itemNorm = strings.TrimSuffix(itemNorm, "\\")
+
+		if itemNorm == path {
 			return true
 		}
 	}

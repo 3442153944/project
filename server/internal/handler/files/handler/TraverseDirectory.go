@@ -31,7 +31,9 @@ func NewTraverseDirectory(db *gorm.DB, redis *redis.Client) _interface.TraverseD
 
 // TraverseRequest 请求参数结构体
 type TraverseRequest struct {
-	Path string `json:"path" binding:"required"`
+	Path     string `json:"path" binding:"required"`
+	Page     int    `json:"page,omitempty"`      // 可选，页码从1开始
+	PageSize int    `json:"page_size,omitempty"` // 可选，每页大小
 }
 
 // FileItem 文件/目录项结构体
@@ -67,28 +69,29 @@ func (h *traverseDirectory) HandlerPOST(c *gin.Context) {
 	// 清理路径
 	req.Path = filepath.Clean(req.Path)
 
+	if len(req.Path) == 2 && req.Path[1] == ':' {
+		req.Path = req.Path + string(filepath.Separator)
+	}
+
 	// 检查路径是否存在
-	if _, err := os.Stat(req.Path); os.IsNotExist(err) {
+	fileInfo, err := os.Stat(req.Path)
+	if os.IsNotExist(err) {
 		logger.Error("目录不存在", zap.String("path", req.Path), zap.Error(err))
 		response.Error(c, 404, "目录不存在")
 		return
 	}
-
-	// 检查是否为目录
-	fileInfo, err := os.Stat(req.Path)
 	if err != nil {
 		logger.Error("无法访问目录", zap.String("path", req.Path), zap.Error(err))
 		response.Error(c, 500, "无法访问目录")
 		return
 	}
-
 	if !fileInfo.IsDir() {
 		logger.Error("路径不是目录", zap.String("path", req.Path))
 		response.Error(c, 400, "路径不是目录")
 		return
 	}
 
-	// 遍历目录（只返回一层）
+	// 遍历目录
 	result, err := h.traverseSingleLevel(req.Path)
 	if err != nil {
 		logger.Error("遍历目录失败", zap.String("path", req.Path), zap.Error(err))
@@ -96,7 +99,40 @@ func (h *traverseDirectory) HandlerPOST(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, result)
+	// 判断是否需要分页
+	if req.Page > 0 && req.PageSize > 0 {
+		// 分页模式
+		start := (req.Page - 1) * req.PageSize
+		end := req.Page * req.PageSize
+
+		if start > len(result.Items) {
+			start = len(result.Items)
+		}
+		if end > len(result.Items) {
+			end = len(result.Items)
+		}
+
+		pagedItems := result.Items[start:end]
+		totalPages := (result.TotalCount + req.PageSize - 1) / req.PageSize
+
+		response.Success(c, gin.H{
+			"current_path": result.CurrentPath,
+			"parent_path":  result.ParentPath,
+			"items":        pagedItems,
+			"total_count":  result.TotalCount,
+			"dir_count":    result.DirCount,
+			"file_count":   result.FileCount,
+			"pagination": gin.H{
+				"page":        req.Page,
+				"page_size":   req.PageSize,
+				"total_pages": totalPages,
+				"has_more":    req.Page < totalPages,
+			},
+		})
+	} else {
+		// 不分页，返回全部
+		response.Success(c, result)
+	}
 }
 
 // traverseSingleLevel 只遍历当前目录的直接子项
@@ -107,13 +143,20 @@ func (h *traverseDirectory) traverseSingleLevel(path string) (*TraverseResponse,
 		return nil, err
 	}
 
+	logger.Info("读取目录", zap.String("path", path), zap.Int("entries_count", len(entries)))
+
 	var items []FileItem
 	var dirCount, fileCount int
+	var skippedCount int
 
 	for _, entry := range entries {
 		info, err := entry.Info()
 		if err != nil {
-			// 如果无法获取文件信息，跳过该项
+			// 记录跳过的文件
+			logger.Warn("无法获取文件信息，跳过",
+				zap.String("name", entry.Name()),
+				zap.Error(err))
+			skippedCount++
 			continue
 		}
 
@@ -127,7 +170,6 @@ func (h *traverseDirectory) traverseSingleLevel(path string) (*TraverseResponse,
 			Mode:    info.Mode().String(),
 		}
 
-		// 如果是目录，统计子项目数量
 		if item.IsDir {
 			dirCount++
 			subEntries, err := os.ReadDir(fullPath)
@@ -136,9 +178,7 @@ func (h *traverseDirectory) traverseSingleLevel(path string) (*TraverseResponse,
 			}
 		} else {
 			fileCount++
-			// 设置文件扩展名
 			item.Extension = strings.ToLower(filepath.Ext(item.Name))
-			// 如果扩展名是空的，可能是隐藏文件或无扩展名文件
 			if item.Extension == "" {
 				item.Extension = "unknown"
 			}
@@ -147,20 +187,23 @@ func (h *traverseDirectory) traverseSingleLevel(path string) (*TraverseResponse,
 		items = append(items, item)
 	}
 
-	// 排序：目录在前，文件在后，按名称排序
+	logger.Info("遍历完成",
+		zap.Int("items_count", len(items)),
+		zap.Int("skipped", skippedCount),
+		zap.Int("dirs", dirCount),
+		zap.Int("files", fileCount))
+
+	// 排序
 	sort.Slice(items, func(i, j int) bool {
-		// 目录优先
 		if items[i].IsDir && !items[j].IsDir {
 			return true
 		}
 		if !items[i].IsDir && items[j].IsDir {
 			return false
 		}
-		// 同类型按名称排序（不区分大小写）
 		return strings.ToLower(items[i].Name) < strings.ToLower(items[j].Name)
 	})
 
-	// 构建响应
 	res := &TraverseResponse{
 		CurrentPath: path,
 		Items:       items,
@@ -169,7 +212,6 @@ func (h *traverseDirectory) traverseSingleLevel(path string) (*TraverseResponse,
 		FileCount:   fileCount,
 	}
 
-	// 计算父级路径（如果不是根目录）
 	if path != filepath.VolumeName(path)+string(filepath.Separator) && path != "/" {
 		res.ParentPath = filepath.Dir(path)
 	}

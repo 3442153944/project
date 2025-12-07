@@ -103,14 +103,14 @@ file:
     # 禁止的文件扩展名
     forbiddenExtensions:
       - ".exe"
-      - ".bat"
-      - ".cmd"
-      - ".com"
-      - ".dll"
-      - ".sys"
-      - ".scr"
-      - ".vbs"
-      - ".ps1"
+#      - ".bat"
+#      - ".cmd"
+#      - ".com"
+#      - ".dll"
+#      - ".sys"
+#      - ".scr"
+#      - ".vbs"
+#      - ".ps1"
 
     maxFilenameLength: 255        # 最大文件名长度
     tempCleanInterval: 3600       # 临时文件清理间隔（秒）
