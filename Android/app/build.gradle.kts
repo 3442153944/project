@@ -85,4 +85,9 @@ dependencies {
     // Debug
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    //路由
+    implementation(libs.androidx.navigation.compose)
+    // 下载库
+    implementation(libs.prdownloader)
 }

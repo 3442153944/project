@@ -1,9 +1,13 @@
 // ui/components/files/FileItemCard.kt
 package com.example.filesync.ui.components.files
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
+import androidx.compose.material.icons.automirrored.filled.TextSnippet
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -16,16 +20,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.filesync.ui.viewModel.files.FileItem
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FileItemCard(
     item: FileItem,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
@@ -79,12 +88,19 @@ fun FileItemCard(
                 }
             }
 
-            // 箭头（仅文件夹）
+            // 箭头（仅文件夹）或下载图标（文件）
             if (item.isDir) {
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Download,
+                    contentDescription = "下载",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -103,13 +119,13 @@ fun getFileIcon(item: FileItem): ImageVector {
         ".xls", ".xlsx" -> Icons.Default.TableChart
         ".ppt", ".pptx" -> Icons.Default.Slideshow
         ".zip", ".rar", ".7z", ".tar", ".gz" -> Icons.Default.FolderZip
-        ".txt", ".md", ".log" -> Icons.Default.TextSnippet
+        ".txt", ".md", ".log" -> Icons.AutoMirrored.Filled.TextSnippet
         ".html", ".htm", ".css", ".js", ".ts" -> Icons.Default.Code
         ".json", ".xml", ".yaml", ".yml" -> Icons.Default.DataObject
         ".py", ".java", ".kt", ".c", ".cpp", ".go", ".rs" -> Icons.Default.Code
         ".php" -> Icons.Default.Code
         ".exe", ".msi", ".apk" -> Icons.Default.InstallDesktop
-        else -> Icons.Default.InsertDriveFile
+        else -> Icons.AutoMirrored.Filled.InsertDriveFile
     }
 }
 
@@ -137,8 +153,8 @@ fun getFileIconColor(item: FileItem): Color {
 fun formatModTime(isoTime: String): String {
     // 简单处理：取日期部分
     return try {
-        isoTime.substring(0, 10)
-    } catch (e: Exception) {
+        isoTime.take(10)
+    } catch (_: Exception) {
         ""
     }
 }

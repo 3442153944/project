@@ -60,7 +60,7 @@ class FileListViewModel : ViewModel() {
     fun navigateTo(path: String) {
         // 保存当前路径到栈
         _fileData.value?.currentPath?.let { current ->
-            _pathStack.value = _pathStack.value + current
+            _pathStack.value += current
         }
         loadDirectory(path)
     }
@@ -78,7 +78,7 @@ class FileListViewModel : ViewModel() {
     fun navigateToParent() {
         _fileData.value?.parentPath?.let { parent ->
             if (parent.isNotEmpty()) {
-                _pathStack.value = _pathStack.value + (_fileData.value?.currentPath ?: "")
+                _pathStack.value += (_fileData.value?.currentPath ?: "")
                 loadDirectory(parent)
             }
         }

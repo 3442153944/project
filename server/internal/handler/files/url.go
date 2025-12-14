@@ -31,5 +31,5 @@ func (r *Router) RegisterRoutes(group *gin.RouterGroup, db *gorm.DB, redis *redi
 	// 注册路由
 	group.POST("/available-disks", getAvailableDiskList.HandlerPOST)
 	group.POST("/traverse-directory", traverseDirectory.HandlerPOST)
-	group.POST("/get-file", getFile.HandlerPOST)
+	group.GET("/get-file", getFile.HandlerGET)
 }

@@ -173,6 +173,8 @@ object Request {
 
             val response = client.newCall(requestBuilder.build()).execute()
 
+            // 在 Request.kt 的 request 方法中，修改自动提取 token 的部分：
+
             if (response.isSuccessful) {
                 val responseBody = response.body?.string()
 
@@ -180,18 +182,27 @@ object Request {
                     try {
                         val result = json.decodeFromString<T>(responseBody)
 
-                        // 自动提取保存 token
+                        // 自动提取保存 token（只在响应成功时）
                         try {
-                            val dataField = result!!::class.java.getDeclaredField("data")
-                            dataField.isAccessible = true
-                            val dataValue = dataField.get(result)
-                            if (dataValue != null) {
-                                val tokenField = dataValue::class.java.getDeclaredField("token")
-                                tokenField.isAccessible = true
-                                val tokenValue = tokenField.get(dataValue) as? String
-                                tokenValue?.let { saveToken(it) }
+                            val codeField = result!!::class.java.getDeclaredField("code")
+                            codeField.isAccessible = true
+                            val codeValue = codeField.get(result) as? Int
+
+                            // code == 200 表示成功
+                            if (codeValue == 200) {
+                                val dataField = result::class.java.getDeclaredField("data")
+                                dataField.isAccessible = true
+                                val dataValue = dataField.get(result)
+                                if (dataValue != null) {
+                                    val tokenField = dataValue::class.java.getDeclaredField("token")
+                                    tokenField.isAccessible = true
+                                    val tokenValue = tokenField.get(dataValue) as? String
+                                    tokenValue?.let { saveToken(it) }
+                                }
                             }
-                        } catch (_: Exception) {}
+                        } catch (_: Exception) {
+                            // 忽略 token 提取失败（可能没有 token 字段）
+                        }
 
                         onResult(Result.success(result))
                     } catch (e: Exception) {
