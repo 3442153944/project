@@ -1,6 +1,8 @@
 // router/AppNavHost.kt
 package com.example.filesync.router
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -19,6 +21,7 @@ import com.example.filesync.ui.screen.transmission.TransferScreen
  * 应用导航主机
  * 统一管理所有页面路由
  */
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun AppNavHost(
     navController: NavHostController,
@@ -36,7 +39,7 @@ fun AppNavHost(
         }
 
         composable(AppRoute.Files.route) {
-            FileScreen()
+            FileScreen(navController = navController)
         }
 
         composable(AppRoute.Monitor.route) {
@@ -51,8 +54,9 @@ fun AppNavHost(
 
         // 传输页面
         composable(AppRoute.Transfer.route) {
-            TransferScreen(
-                onBackClick = { navController.navigateUp() }
+            FileTransferListScreen(
+                onBackClick = { navController.navigateUp() },
+                navController = navController
             )
         }
 
@@ -76,10 +80,7 @@ fun AppNavHost(
         composable(AppRoute.FileUpload.route) {
             FileUploadScreen(
                 onBackClick = { navController.navigateUp() },
-                onUploadComplete = {
-                    navController.navigateUp()
-                    // 可以刷新文件列表
-                }
+                navController = navController
             )
         }
 

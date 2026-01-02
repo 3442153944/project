@@ -3,6 +3,7 @@ package com.example.filesync.ui.screen
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -49,14 +50,14 @@ fun FileDetailScreen(
     }
 }
 
-@Composable
-fun FileUploadScreen(
-    onBackClick: () -> Unit,
-    onUploadComplete: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    PlaceholderScreenWithBack("文件上传", onBackClick, modifier)
-}
+//@Composable
+//fun FileUploadScreen(
+//    onBackClick: () -> Unit,
+//    onUploadComplete: () -> Unit,
+//    modifier: Modifier = Modifier
+//) {
+//    PlaceholderScreenWithBack("文件上传", onBackClick, modifier)
+//}
 
 @Composable
 fun FileSearchScreen(
@@ -137,7 +138,7 @@ fun PlaceholderScreenWithBack(
                 title = { Text(name) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
                 }
             )

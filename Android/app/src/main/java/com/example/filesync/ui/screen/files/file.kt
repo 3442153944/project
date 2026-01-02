@@ -1,32 +1,57 @@
 // ui/screen/files/file.kt
 package com.example.filesync.ui.screen.files
 
-import android.os.Environment
+import android.os.Build
+import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.filesync.ui.components.files.*
+import androidx.navigation.NavController
+import com.example.filesync.router.AppRoute
+import com.example.filesync.router.navigateToDetail
+import com.example.filesync.ui.components.files.DirectoryPickerScreen
+import com.example.filesync.ui.components.files.DiskListHeader
+import com.example.filesync.ui.components.files.ErrorCard
+import com.example.filesync.ui.components.files.FileItemCard
+import com.example.filesync.ui.components.files.FileListHeader
+import com.example.filesync.ui.components.files.FileListStats
+import com.example.filesync.ui.components.files.LoadingIndicator
+import com.example.filesync.ui.components.files.diskItems
 import com.example.filesync.ui.viewModel.files.ActiveDiskViewModel
 import com.example.filesync.ui.viewModel.files.FileListViewModel
 import com.example.filesync.ui.viewModel.transmission.DownloadListViewModel
 import com.example.filesync.util.RootHelper
 import java.io.File
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FileScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    navController: NavController
 ) {
     val context = LocalContext.current
     val diskViewModel = viewModel<ActiveDiskViewModel>()
@@ -45,6 +70,7 @@ fun FileScreen(
     var currentDiskPath by remember { mutableStateOf<String?>(null) }
     var showDownloadDialog by remember { mutableStateOf(false) }
     var selectedFileForDownload by remember { mutableStateOf<com.example.filesync.ui.viewModel.files.FileItem?>(null) }
+    var showDirectoryPicker by remember { mutableStateOf(false) }
 
     // 判断是否在磁盘根目录
     val isAtDiskRoot = remember(fileData, currentDiskPath) {
@@ -53,43 +79,99 @@ fun FileScreen(
     }
 
     // 系统返回键处理
-    BackHandler(enabled = currentDiskPath != null) {
-        when {
-            pathStack.isNotEmpty() -> {
-                fileListViewModel.navigateBack()
-            }
-            !isAtDiskRoot && fileData?.parentPath?.isNotEmpty() == true -> {
-                fileListViewModel.navigateToParent()
-            }
-            else -> {
-                currentDiskPath = null
-                fileListViewModel.clearState()
+    BackHandler(enabled = currentDiskPath != null && !showDirectoryPicker) {
+        try {
+            when {
+                pathStack.isNotEmpty() -> {
+                    fileListViewModel.navigateBack()
+                }
+                !isAtDiskRoot && fileData?.parentPath?.isNotEmpty() == true -> {
+                    fileListViewModel.navigateToParent()
+                }
+                else -> {
+                    currentDiskPath = null
+                    fileListViewModel.clearState()
+                }
             }
         }
+        catch (e: Exception) {
+            e.printStackTrace()
+            Log.e("FileScreen", "BackHandler error: ${e.message}")
+        }
+
     }
 
-    // 下载确认对话框
-    if (showDownloadDialog && selectedFileForDownload != null) {
-        DownloadConfirmDialog(
-            fileItem = selectedFileForDownload!!,
-            onConfirm = { savePath ->
+    // 检测 Root 状态
+    var isRooted by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        isRooted = RootHelper.isDeviceRooted()
+    }
+
+    // 目录选择器页面
+    if (showDirectoryPicker && selectedFileForDownload != null) {
+        DirectoryPickerScreen(
+            isRooted = isRooted,
+            onDirectorySelected = { selectedPath ->
                 val item = selectedFileForDownload!!
-                // 获取文件所在目录（去掉文件名）
                 val parentPath = item.path.substringBeforeLast(File.separator)
 
                 downloadViewModel.addDownload(
                     path = parentPath,
                     name = item.name,
-                    saveDir = File(savePath),
+                    saveDir = File(selectedPath),
                     deviceId = null
                 )
 
-                showDownloadDialog = false
+                showDirectoryPicker = false
                 selectedFileForDownload = null
             },
             onDismiss = {
+                showDirectoryPicker = false
+                selectedFileForDownload = null
+            },
+            fileItem = selectedFileForDownload!!
+        )
+        return // 显示目录选择器时，不显示文件列表
+    }
+
+    // 下载确认对话框（简化版，只显示文件信息）
+    if (showDownloadDialog && selectedFileForDownload != null) {
+        AlertDialog(
+            onDismissRequest = {
                 showDownloadDialog = false
                 selectedFileForDownload = null
+            },
+            title = {
+                Text(if (selectedFileForDownload!!.isDir) "下载文件夹" else "下载文件")
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("文件名: ${selectedFileForDownload!!.name}")
+                    if (!selectedFileForDownload!!.isDir) {
+                        Text("大小: ${formatFileSize(selectedFileForDownload!!.size)}")
+                    }
+                    Text("准备选择保存位置...")
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDownloadDialog = false
+                        showDirectoryPicker = true
+                    }
+                ) {
+                    Text("选择保存位置")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDownloadDialog = false
+                        selectedFileForDownload = null
+                    }
+                ) {
+                    Text("取消")
+                }
             }
         )
     }
@@ -154,17 +236,14 @@ fun FileScreen(
                     item = item,
                     onClick = {
                         if (item.isDir) {
-                            // 目录：进入
                             fileListViewModel.navigateTo(item.path)
                         } else {
-                            // 文件：下载
                             selectedFileForDownload = item
                             showDownloadDialog = true
                         }
                     },
                     onLongClick = if (item.isDir) {
                         {
-                            // 长按目录：下载整个文件夹
                             selectedFileForDownload = item
                             showDownloadDialog = true
                         }
@@ -194,6 +273,15 @@ fun FileScreen(
             if (diskError != null) {
                 item { ErrorCard(message = diskError!!) }
             }
+            diskData?.allowedCount?.let {
+                if(it>0){
+                    item{
+                        Button(onClick = {navController.navigateToDetail(AppRoute.FileUpload)  }) {
+                            Text("上传文件")
+                        }
+                    }
+                }
+            }
 
             diskItems(
                 disks = diskData?.allowedDisks ?: emptyList(),
@@ -220,85 +308,6 @@ fun FileScreen(
             }
         }
     }
-}
-
-/**
- * 下载确认对话框
- */
-@Composable
-fun DownloadConfirmDialog(
-    fileItem: com.example.filesync.ui.viewModel.files.FileItem,
-    onConfirm: (savePath: String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val context = LocalContext.current
-
-    // 使用 LaunchedEffect 在协程中检查 Root 状态
-    var isRooted by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        isRooted = RootHelper.isDeviceRooted()
-    }
-
-    // 根据 Root 状态决定默认下载路径
-    val defaultDownloadPath = remember(isRooted) {
-        if (isRooted) {
-            "/sdcard/Download" // Root 模式：从根目录起
-        } else {
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath
-        }
-    }
-
-    var savePath by remember(defaultDownloadPath) { mutableStateOf(defaultDownloadPath) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(if (fileItem.isDir) "下载文件夹" else "下载文件")
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("文件名: ${fileItem.name}")
-                if (!fileItem.isDir) {
-                    Text("大小: ${formatFileSize(fileItem.size)}")
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = savePath,
-                    onValueChange = { savePath = it },
-                    label = { Text("保存路径") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-
-                if (isRooted) {
-                    Text(
-                        "Root 模式：可以访问系统根目录",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (savePath.isNotBlank()) {
-                        onConfirm(savePath)
-                    }
-                }
-            ) {
-                Text("开始下载")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消")
-            }
-        }
-    )
 }
 
 /**

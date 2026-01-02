@@ -90,4 +90,5 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     // 下载库
     implementation(libs.prdownloader)
+    implementation(libs.okio)
 }
