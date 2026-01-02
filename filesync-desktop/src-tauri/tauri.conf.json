@@ -12,9 +12,12 @@
   "app": {
     "windows": [
       {
-        "title": "filesync-desktop",
+        "title": "云梯",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "devtools": true,
+        "resizable": true,
+        "fullscreen": false
       }
     ],
     "security": {

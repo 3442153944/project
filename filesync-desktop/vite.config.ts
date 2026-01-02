@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv } from "vite";
+import {defineConfig, loadEnv} from "vite";
 import vue from "@vitejs/plugin-vue";
 import VueDevTools from 'vite-plugin-vue-devtools'
 import VueSetupExtend from 'vite-plugin-vue-setup-extend'
@@ -7,7 +7,7 @@ import VueSetupExtend from 'vite-plugin-vue-setup-extend'
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
-export default defineConfig(async ({ mode }) => {
+export default defineConfig(async ({mode}) => {
     // 加载环境变量
     const env = loadEnv(mode, process.cwd(), '');
 
@@ -24,7 +24,9 @@ export default defineConfig(async ({ mode }) => {
             //         // editorPath: 'C:/Program Files/JetBrains/WebStorm/bin/webstorm64.exe'
             //     })
             // ] : []),
-            VueDevTools(),
+            VueDevTools({
+                launchEditor: 'webstorm' // 设置默认编辑器
+            }),
             VueSetupExtend()
         ],
 
