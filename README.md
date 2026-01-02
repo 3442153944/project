@@ -42,7 +42,7 @@
 | **缓存与消息队列** | Redis `v5.0.10` |
 | **反向代理 / 静态资源** | NGINX `v2.22.0` |
 | **Android 客户端** | Kotlin (`Android 10+`) |
-| **Windows 客户端** | C# (`.NET 6+`, `Windows 10+`) |
+| **Windows 客户端** | Tauri (`2.0.0以上`, `Windows 10+`) |
 | **Web 前端** | Vue 3 + TypeScript + Element Plus |
 
 ---
@@ -67,5 +67,5 @@
    │           │            │
 ┌──▼────┐  ┌───▼────┐   ┌───▼────┐
 │Android│  │ Windows│   │ Web UI │ 
-│Kotlin │  │  C#    │   │ Vue3   │
+│Kotlin │  │  tauri │   │ Vue3   │
 └───────┘  └────────┘   └────────┘
