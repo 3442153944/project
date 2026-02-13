@@ -9,17 +9,18 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig   `mapstructure:"server"`
-	Database DatabaseConfig `mapstructure:"database"`
-	Redis    RedisConfig    `mapstructure:"redis"`
-	JWT      JWTConfig      `mapstructure:"jwt"`
-	Security SecurityConfig `mapstructure:"security"`
-	Sync     SyncConfig     `mapstructure:"sync"`
-	DebugLog LogConfig      `mapstructure:"debugLog"`
-	DevLog   LogConfig      `mapstructure:"devLog"`
-	ProdLog  LogConfig      `mapstructure:"prodLog"`
-	Token    TokenConfig    `mapstructure:"token"`
-	File     FileConfig     `mapstructure:"file"`
+	Server     ServerConfig   `mapstructure:"server"`
+	Database   DatabaseConfig `mapstructure:"database"`
+	Redis      RedisConfig    `mapstructure:"redis"`
+	JWT        JWTConfig      `mapstructure:"jwt"`
+	Security   SecurityConfig `mapstructure:"security"`
+	Sync       SyncConfig     `mapstructure:"sync"`
+	DebugLog   LogConfig      `mapstructure:"debugLog"`
+	DevLog     LogConfig      `mapstructure:"devLog"`
+	ProdLog    LogConfig      `mapstructure:"prodLog"`
+	Token      TokenConfig    `mapstructure:"token"`
+	File       FileConfig     `mapstructure:"file"`
+	UserConfig UserConfig     `mapstructure:"userConfig"`
 }
 
 type ServerConfig struct {
@@ -109,6 +110,15 @@ type UploadConfig struct {
 	TempCleanInterval   int      `mapstructure:"tempCleanInterval"`   // 临时文件清理间隔（秒，默认：3600）
 	TempMaxAge          int      `mapstructure:"tempMaxAge"`          // 临时文件最长保留（秒，默认：86400）
 }
+
+// UserConfig 用户个人信息配置
+type UserConfig struct {
+	AvatarPath        string   `mapstructure:"avatarPath"`        // 用户头像目录
+	AllowedExtensions []string `mapstructure:"allowedExtensions"` // 允许的头像扩展名
+	MaxSize           int64    `mapstructure:"maxSize"`           // 最大头像大小（字节，默认：10MB）
+}
+
+//
 
 func Load(configPath string) (*Config, error) {
 	viper.SetConfigFile(configPath)
@@ -358,4 +368,9 @@ func (c *Config) IsExtensionAllowed(ext string) bool {
 	}
 
 	return false
+}
+
+// GetUserConfig 获取用户配置
+func (c *Config) GetUserConfig() UserConfig {
+	return c.UserConfig
 }

@@ -73,7 +73,7 @@ func (g *Gateway) SetupRoutes() {
 
 		// 注册user模块
 		userGroup := api.Group("/user")
-		user.NewUserRouter().RegisterRoutes(userGroup, g.db, g.redis)
+		user.NewUserRouter(g.cfg).RegisterRoutes(userGroup, g.db, g.redis)
 
 		// 注册WebSocket路由
 		g.wsHandler.RegisterRoutes(api)

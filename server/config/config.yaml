@@ -115,3 +115,11 @@ file:
     maxFilenameLength: 255        # 最大文件名长度
     tempCleanInterval: 3600       # 临时文件清理间隔（秒）
     tempMaxAge: 86400             # 临时文件最长保留时间 24小时（秒）
+
+#用户个人信息配置
+UserConfig:
+  avatarPath: "avatar"          # 用户头像目录
+  allowedExtensions:
+    - ".jpg"
+    - ".png"
+  maxSize: 10485760             # 最大头像大小 10MB（字节）

@@ -11,3 +11,8 @@ type UserRegister interface {
 type UserResetPassword interface {
 	HandlePOST(c *gin.Context)
 }
+
+// UserUpdateUserInfo 用户更新个人信息接口
+type UserUpdateUserInfo interface {
+	HandlePOST(c *gin.Context)
+}
