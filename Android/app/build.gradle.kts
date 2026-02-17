@@ -91,4 +91,5 @@ dependencies {
     // 下载库
     implementation(libs.prdownloader)
     implementation(libs.okio)
+    implementation(libs.coil)
 }

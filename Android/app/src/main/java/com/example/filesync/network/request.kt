@@ -31,6 +31,11 @@ object Request {
             field = value.trimEnd('/')
             Log.d(TAG, "基础 URL: $field")
         }
+    var baseStaticUrl="http://192.168.31.100:9999"
+        set(value) {
+            field = value.trimEnd('/')
+            Log.d(TAG, "基础静态 URL: $field")
+        }
 
     private var appContext: Context? = null
 
@@ -223,6 +228,101 @@ object Request {
         } catch (e: Exception) {
             Log.e(TAG, "请求失败: ${e.message}")
             onResult(Result.failure(e))
+        }
+    }
+
+    /**
+     * POST 请求 - suspend 版本（有请求体）
+     */
+    suspend inline fun <reified T, reified B> postSuspend(
+        endpoint: String,
+        body: B? = null
+    ): Result<T> {
+        return requestSuspend("POST", endpoint, body, json.serializersModule.serializer<B>())
+    }
+
+    /**
+     * POST 请求 - suspend 版本（无请求体）
+     */
+    suspend inline fun <reified T> postSuspend(
+        endpoint: String
+    ): Result<T> {
+        return requestSuspend<T, Unit>("POST", endpoint, null, null)
+    }
+
+    /**
+     * 通用请求 - suspend 版本，直接返回 Result
+     */
+    suspend inline fun <reified T, B> requestSuspend(
+        method: String,
+        endpoint: String,
+        body: B?,
+        serializer: SerializationStrategy<B>?
+    ): Result<T> = withContext(Dispatchers.IO) {
+        try {
+            val url = "$baseUrl$endpoint"
+            Log.d(TAG, "$method $url")
+
+            val token = getToken()
+
+            val requestBuilder = okhttp3.Request.Builder()
+                .url(url)
+                .apply {
+                    token?.let { header("token", it) }
+                }
+
+            val requestBody = if (body != null && serializer != null) {
+                json.encodeToString(serializer, body).toRequestBody("application/json".toMediaType())
+            } else {
+                "{}".toRequestBody("application/json".toMediaType())
+            }
+
+            when (method.uppercase()) {
+                "POST" -> requestBuilder.post(requestBody)
+                "PUT" -> requestBuilder.put(requestBody)
+                "DELETE" -> requestBuilder.delete(requestBody)
+                "GET" -> requestBuilder.get()
+            }
+
+            val response = client.newCall(requestBuilder.build()).execute()
+
+            if (response.isSuccessful) {
+                val responseBody = response.body?.string()
+                if (responseBody != null) {
+                    val result = json.decodeFromString<T>(responseBody)
+
+                    // 自动提取保存 token
+                    try {
+                        val codeField = result!!::class.java.getDeclaredField("code")
+                        codeField.isAccessible = true
+                        val codeValue = codeField.get(result) as? Int
+                        if (codeValue == 200) {
+                            val dataField = result::class.java.getDeclaredField("data")
+                            dataField.isAccessible = true
+                            val dataValue = dataField.get(result)
+                            if (dataValue != null) {
+                                val tokenField = dataValue::class.java.getDeclaredField("token")
+                                tokenField.isAccessible = true
+                                val tokenValue = tokenField.get(dataValue) as? String
+                                tokenValue?.let { saveToken(it) }
+                            }
+                        }
+                    } catch (_: Exception) { }
+
+                    Result.success(result)
+                } else {
+                    Result.failure(Exception("响应体为空"))
+                }
+            } else {
+                if (response.code == 401) {
+                    Log.w(TAG, "认证失败，清除 token")
+                    clearToken()
+                }
+                Result.failure(Exception("HTTP ${response.code}: ${response.message}"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "请求失败: ${e.message}")
+            Result.failure(e)
         }
     }
 

@@ -3,6 +3,8 @@ package handler
 import (
 	"bytes"
 	"fmt"
+	"github.com/sunyuanling/server/pkg/logger"
+	"go.uber.org/zap"
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
@@ -19,6 +21,7 @@ import (
 	"github.com/sunyuanling/server/config"
 	"github.com/sunyuanling/server/internal/base"
 	"github.com/sunyuanling/server/internal/model"
+	_ "github.com/sunyuanling/server/pkg/logger"
 	"github.com/sunyuanling/server/pkg/response"
 	tokenPkg "github.com/sunyuanling/server/pkg/tokn"
 	"gorm.io/gorm"
@@ -38,9 +41,10 @@ func NewUpdateUserInfoHandler(db *gorm.DB, redis *redis.Client, cfg *config.Conf
 
 // UpdateUserInfoRequest 只允许更新这些字段，ID 从 token 取，username/password 不可改
 type UpdateUserInfoRequest struct {
-	Email  string `form:"email"`
-	Phone  string `form:"phone"`
-	Avatar string `form:"-"` // 从文件上传处理，不从 form 字段读
+	Username string `form:"username"`
+	Email    string `form:"email"`
+	Phone    string `form:"phone"`
+	Avatar   string `form:"-"`
 }
 
 func (h *UpdateUserInfoHandler) HandlePOST(c *gin.Context) {
@@ -67,6 +71,7 @@ func (h *UpdateUserInfoHandler) HandlePOST(c *gin.Context) {
 	// 3. 解析请求体
 	var req UpdateUserInfoRequest
 	if err := c.ShouldBind(&req); err != nil {
+		logger.Error("参数解析失败", zap.Error(err))
 		response.BadRequest(c, "参数解析失败: "+err.Error())
 		return
 	}
@@ -78,8 +83,11 @@ func (h *UpdateUserInfoHandler) HandlePOST(c *gin.Context) {
 		return
 	}
 
-	// 5. 构建更新 map（只更新非空字段）
+	// 5. 构建更新 map
 	updates := map[string]any{}
+	if req.Username != "" {
+		updates["username"] = req.Username
+	}
 	if req.Email != "" {
 		updates["email"] = req.Email
 	}
@@ -90,6 +98,7 @@ func (h *UpdateUserInfoHandler) HandlePOST(c *gin.Context) {
 		updates["avatar"] = avatarRelPath
 	}
 	if len(updates) == 0 {
+		logger.Warn("没有需要更新的字段", zap.Any("updates", updates))
 		response.BadRequest(c, "没有需要更新的字段")
 		return
 	}
@@ -98,6 +107,7 @@ func (h *UpdateUserInfoHandler) HandlePOST(c *gin.Context) {
 	if err := h.DB.Model(&model.User{}).
 		Where("id = ?", userID).
 		Updates(updates).Error; err != nil {
+		logger.Error("更新用户信息失败", zap.Error(err))
 		response.InternalError(c, "更新用户信息失败")
 		return
 	}
@@ -110,13 +120,11 @@ func (h *UpdateUserInfoHandler) HandlePOST(c *gin.Context) {
 func (h *UpdateUserInfoHandler) handleAvatarUpload(c *gin.Context, userID uint) (string, error) {
 	file, header, err := c.Request.FormFile("avatar")
 	if err != nil {
-		// 没有上传头像，正常跳过
 		return "", nil
 	}
 	defer func(file multipart.File) {
-		err := file.Close()
-		if err != nil {
-			response.InternalError(c, "关闭文件失败: "+err.Error())
+		if err := file.Close(); err != nil {
+			logger.Error("关闭文件失败", zap.Error(err))
 		}
 	}(file)
 
@@ -127,49 +135,54 @@ func (h *UpdateUserInfoHandler) handleAvatarUpload(c *gin.Context, userID uint) 
 		return "", fmt.Errorf("头像文件超过最大限制 %dMB", userCfg.MaxSize/1024/1024)
 	}
 
-	// 校验原始扩展名是否在允许列表
+	// 校验扩展名
 	origExt := strings.ToLower(filepath.Ext(header.Filename))
 	if !isAvatarExtAllowed(origExt, userCfg.AllowedExtensions) {
 		return "", fmt.Errorf("不支持的头像格式: %s", origExt)
 	}
 
-	// 解码图片（自动识别格式，需 blank import 注册各 decoder）
+	// 解码图片
 	img, err := decodeImage(file)
 	if err != nil {
 		return "", fmt.Errorf("图片解析失败: %s", err.Error())
 	}
 
-	// 确保头像目录存在
-	baseDisk := h.cfg.GetDefaultPath()
-	avatarDir := h.cfg.GetStoragePath(baseDisk, userCfg.AvatarPath)
+	// 头像保存到项目根目录 static/avatar/
+	// os.Executable() 获取可执行文件路径，往上找到项目根
+	projectRoot, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("获取项目路径失败: %s", err.Error())
+	}
+	avatarDir := filepath.Join(projectRoot, "static", "avatar")
+	println("avatarDir:", avatarDir)
+
 	if err := os.MkdirAll(avatarDir, 0755); err != nil {
 		return "", fmt.Errorf("创建头像目录失败: %s", err.Error())
 	}
 
-	// 文件名：userID_时间戳.png，统一 PNG 格式
+	// 文件名：avatar_{userID}_{时间戳}.png
 	filename := fmt.Sprintf("avatar_%d_%d.png", userID, time.Now().UnixMilli())
 	savePath := filepath.Join(avatarDir, filename)
+	println("savePath:", savePath)
 
-	// 编码为 PNG 写入
 	out, err := os.Create(savePath)
 	if err != nil {
 		return "", fmt.Errorf("创建头像文件失败: %s", err.Error())
 	}
 	defer func(out *os.File) {
-		err := out.Close()
-		if err != nil {
-			response.InternalError(c, "关闭文件失败: "+err.Error())
+		if err := out.Close(); err != nil {
+			logger.Error("关闭文件失败", zap.Error(err))
 		}
 	}(out)
 
 	if err := png.Encode(out, img); err != nil {
-		// 写入失败时清理残留文件
+
 		_ = os.Remove(savePath)
 		return "", fmt.Errorf("保存头像失败: %s", err.Error())
 	}
 
-	// 返回相对路径（正斜杠，方便拼 URL）
-	return filepath.ToSlash(filepath.Join(userCfg.AvatarPath, filename)), nil
+	// 返回相对 URL 路径，前端拼 baseURL 访问
+	return "static/avatar/" + filename, nil
 }
 
 // decodeImage 将上传文件解码为 image.Image

@@ -19,23 +19,27 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.example.filesync.network.Request
+import com.example.filesync.router.AppRoute
+import com.example.filesync.router.navigateAndClearBackStack
 import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: (UserInfo) -> Unit,
-    onLoginError: (String) -> Unit
+    navController: NavController,
+    modifier: Modifier = Modifier,
+    onLoginSuccess: ((FullUser) -> Unit)? = null
 ) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var rememberPassword by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
+    var errorMsg by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
 
-    // 加载保存的凭据
     LaunchedEffect(Unit) {
         Request.getSavedCredentials()?.let { (savedUsername, savedPassword, remember) ->
             username = savedUsername
@@ -45,7 +49,7 @@ fun LoginScreen(
     }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .padding(24.dp),
         contentAlignment = Alignment.Center
@@ -78,9 +82,7 @@ fun LoginScreen(
                     value = username,
                     onValueChange = { username = it },
                     label = { Text("用户名") },
-                    leadingIcon = {
-                        Icon(Icons.Default.Person, contentDescription = null)
-                    },
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     enabled = !isLoading,
@@ -98,9 +100,7 @@ fun LoginScreen(
                     value = password,
                     onValueChange = { password = it },
                     label = { Text("密码") },
-                    leadingIcon = {
-                        Icon(Icons.Default.Lock, contentDescription = null)
-                    },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
                     trailingIcon = {
                         IconButton(onClick = { passwordVisible = !passwordVisible }) {
                             Icon(
@@ -142,36 +142,39 @@ fun LoginScreen(
                     onClick = {
                         scope.launch {
                             isLoading = true
-                            val loginRequest = LoginRequest(username, password)
+                            errorMsg = ""
 
-                            Request.post<LoginResponse, LoginRequest>("/auth/login", loginRequest) { result ->
-                                isLoading = false
-                                result.onSuccess { response ->
-                                    if (response.code == 200) {
-                                        scope.launch {
-                                            Request.saveCredentials(username, password, rememberPassword)
-                                        }
+                            val result = Request.postSuspend<LoginResponse, LoginRequest>(
+                                "/auth/login",
+                                LoginRequest(username, password)
+                            )
 
-                                        scope.launch {
-                                            Request.post<VerifyResponse>("/auth/verify") { verifyResult ->
-                                                verifyResult.onSuccess { verifyResponse ->
-                                                    if (verifyResponse.code == 200) {
-                                                        onLoginSuccess(verifyResponse.data.userInfo)
-                                                    } else {
-                                                        onLoginError("登录验证失败")
-                                                    }
-                                                }.onFailure { error ->
-                                                    onLoginError(error.message ?: "验证失败")
-                                                }
-                                            }
-                                        }
+                            result.onSuccess { response ->
+                                if (response.code == 200) {
+                                    Request.saveCredentials(username, password, rememberPassword)
+                                    if (onLoginSuccess != null) {
+                                        val user = response.data.user
+                                        onLoginSuccess(FullUser(
+                                            id = user.id,
+                                            username = user.username,
+                                            email = user.email,
+                                            phone = user.phone,
+                                            avatar = user.avatar,
+                                            role = user.role,
+                                            status = user.status,
+                                            last_login = user.last_login
+                                        ))
                                     } else {
-                                        onLoginError(response.message)
+                                        navController.navigateAndClearBackStack(AppRoute.Home.route)
                                     }
-                                }.onFailure { error ->
-                                    onLoginError(error.message ?: "登录失败")
+                                } else {
+                                    errorMsg = response.message
                                 }
+                            }.onFailure { error ->
+                                errorMsg = error.message ?: "登录失败"
                             }
+
+                            isLoading = false
                         }
                     },
                     modifier = Modifier
@@ -194,6 +197,14 @@ fun LoginScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("登录", fontSize = 16.sp)
                     }
+                }
+
+                if (errorMsg.isNotEmpty()) {
+                    Text(
+                        text = errorMsg,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 14.sp
+                    )
                 }
             }
         }

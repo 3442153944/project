@@ -2,55 +2,68 @@ package com.example.filesync.ui.screen.person
 
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavController
 import com.example.filesync.network.Request
+import com.example.filesync.ui.viewModel.user.PPersonalState
+import com.example.filesync.ui.viewModel.user.PVerifyResponse
 import kotlinx.coroutines.launch
 
 @Composable
-fun PersonalScreen(modifier: Modifier = Modifier) {
-    var uiState by remember { mutableStateOf<PersonalUiState>(PersonalUiState.Loading) }
+fun PersonalScreen(modifier: Modifier = Modifier, navController: NavController) {
+    var uiState by remember { mutableStateOf<PPersonalState>(PPersonalState.Loading) }
+    var isEditing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    // 初始化时检查登录状态
     LaunchedEffect(Unit) {
-        checkLoginStatus { state ->
-            uiState = state
-        }
+        uiState = checkLoginStatus()
     }
 
     when (val state = uiState) {
-        is PersonalUiState.Loading -> {
-            LoadingScreen()
-        }
-        is PersonalUiState.NotLoggedIn -> {
+        is PPersonalState.Loading -> LoadingScreen()
+
+        is PPersonalState.NotLoggedIn -> {
             LoginScreen(
-                onLoginSuccess = { userInfo ->
-                    uiState = PersonalUiState.LoggedIn(userInfo)
-                },
-                onLoginError = { error ->
-                    uiState = PersonalUiState.Error(error)
+                navController = navController,
+                onLoginSuccess = { user ->
+//                    uiState = PPersonalState.LoggedIn(user)
                 }
             )
         }
-        is PersonalUiState.LoggedIn -> {
-            UserInfoScreen(
-                userInfo = state.userInfo,
-                onLogout = {
-                    scope.launch {
-                        Request.clearToken()
-                        uiState = PersonalUiState.NotLoggedIn
+
+        is PPersonalState.LoggedIn -> {
+            if (isEditing) {
+                EditProfileScreen(
+                    user = state.user,
+                    onBackClick = { isEditing = false },
+                    onSaveSuccess = {
+                        isEditing = false
+                        scope.launch {
+                            uiState = PPersonalState.Loading
+                            uiState = checkLoginStatus()
+                        }
                     }
-                }
-            )
+                )
+            } else {
+                UserInfoScreen(
+                    user = state.user,
+                    onLogout = {
+                        scope.launch {
+                            Request.clearToken()
+                            uiState = PPersonalState.NotLoggedIn
+                        }
+                    },
+                    onEditClick = { isEditing = true }
+                )
+            }
         }
-        is PersonalUiState.Error -> {
+
+        is PPersonalState.Error -> {
             ErrorScreen(
                 message = state.message,
                 onRetry = {
                     scope.launch {
-                        uiState = PersonalUiState.Loading
-                        checkLoginStatus { newState ->
-                            uiState = newState
-                        }
+                        uiState = PPersonalState.Loading
+                        uiState = checkLoginStatus()
                     }
                 }
             )
@@ -58,24 +71,21 @@ fun PersonalScreen(modifier: Modifier = Modifier) {
     }
 }
 
-// 检查登录状态
-private suspend fun checkLoginStatus(onResult: (PersonalUiState) -> Unit) {
-    val token = Request.getToken()
+private suspend fun checkLoginStatus(): PPersonalState {
+    Request.getToken() ?: return PPersonalState.NotLoggedIn
 
-    if (token == null) {
-        onResult(PersonalUiState.NotLoggedIn)
-        return
-    }
+    val result = Request.postSuspend<PVerifyResponse>("/auth/verify")
 
-    Request.post<VerifyResponse>("/auth/verify") { result ->
-        result.onSuccess { response ->
+    return result.fold(
+        onSuccess = { response ->
             if (response.code == 200) {
-                onResult(PersonalUiState.LoggedIn(response.data.userInfo))
+                PPersonalState.LoggedIn(response.data.user)
             } else {
-                onResult(PersonalUiState.NotLoggedIn)
+                PPersonalState.NotLoggedIn
             }
-        }.onFailure { error ->
-            onResult(PersonalUiState.Error(error.message ?: "验证失败"))
+        },
+        onFailure = { error ->
+            PPersonalState.Error(error.message ?: "验证失败")
         }
-    }
+    )
 }

@@ -12,7 +12,7 @@ data class VerifyResponse(
 @Serializable
 data class VerifyData(
     val msg: String,
-    val userInfo: UserInfo
+    val userInfo: FullUser
 )
 
 @Serializable
@@ -53,4 +53,46 @@ data class User(
     val role: String,
     val status: Int,
     val username: String
+)
+
+// ==================== 统一用户模型 ====================
+
+@Serializable
+data class FullUser(
+    val id: Int,
+    val username: String,
+    val email: String = "",
+    val phone: String = "",
+    val avatar: String = "",
+    val role: String = "",
+    val status: Int = 1,
+    val last_login: String? = null,
+    val created_at: String? = null
+)
+
+// ==================== Update ====================
+
+@Serializable
+data class UpdateUserResponse(
+    val code: Int,
+    val message: String,
+    val data: UpdateUserData? = null
+)
+
+@Serializable
+data class UpdateUserData(
+    val message: String = ""
+)
+fun UserInfo.toFullUser() = FullUser(
+    id = user_id,
+    username = username,
+    email = email
+)
+
+fun FullUser.toUserInfo() = UserInfo(
+    user_id = id,
+    username = username,
+    email = email,
+    issued_at = 0,
+    expires_at = 0
 )

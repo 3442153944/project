@@ -18,6 +18,7 @@ lifecycle = "2.10.0"
 kotlinxCoroutines = "1.10.2"
 navigationCompose = "2.9.6"
 prdownloader = "0.6.0"
+coil = "2.7.0"
 
 
 [libraries]
@@ -52,6 +53,8 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+
+coil = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

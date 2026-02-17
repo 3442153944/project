@@ -81,10 +81,10 @@ sealed class AppRoute(val route: String) {
         /**
          * 不显示底部导航的页面
          */
-        private val hideBottomNavRoutes = setOf(
-            Permission.route,
-            Login.route
-        )
+        /**
+         * 不显示底部导航的页面
+         */
+        private val hideBottomNavRoutes = setOf("permission", "login")
 
         /**
          * 判断是否应该显示底部导航

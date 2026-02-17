@@ -103,14 +103,14 @@ fun AboutScreen(
     PlaceholderScreenWithBack("关于", onBackClick, modifier)
 }
 
-@Composable
-fun LoginScreen(
-    onLoginSuccess: () -> Unit,
-    onSkipLogin: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    PlaceholderScreen("登录", modifier)
-}
+//@Composable
+//fun LoginScreen(
+//    onLoginSuccess: () -> Unit,
+//    onSkipLogin: () -> Unit,
+//    modifier: Modifier = Modifier
+//) {
+//    PlaceholderScreen("登录", modifier)
+//}
 
 @Composable
 fun PlaceholderScreen(

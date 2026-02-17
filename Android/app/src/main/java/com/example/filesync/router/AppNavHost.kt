@@ -13,6 +13,7 @@ import androidx.navigation.navArgument
 import com.example.filesync.ui.screen.*
 import com.example.filesync.ui.screen.files.*
 import com.example.filesync.ui.screen.permission.PermissionScreen
+import com.example.filesync.ui.screen.person.LoginScreen
 import com.example.filesync.ui.screen.person.PersonalScreen
 //import com.example.filesync.ui.screen.settings.*
 import com.example.filesync.ui.screen.transmission.TransferScreen
@@ -47,7 +48,7 @@ fun AppNavHost(
         }
 
         composable(AppRoute.Personal.route) {
-            PersonalScreen()
+            PersonalScreen(navController = navController)
         }
 
         // ==================== 详情页面 ====================
@@ -149,12 +150,7 @@ fun AppNavHost(
         // 登录页面
         composable(AppRoute.Login.route) {
             LoginScreen(
-                onLoginSuccess = {
-                    navController.navigateAndClearBackStack(AppRoute.Home)
-                },
-                onSkipLogin = {
-                    navController.navigateAndClearBackStack(AppRoute.Home)
-                }
+                navController = navController
             )
         }
     }

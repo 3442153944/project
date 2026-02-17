@@ -48,6 +48,8 @@ func NewGateway(db *gorm.DB, redis *redis.Client, cfg *config.Config) *Gateway {
 }
 
 func (g *Gateway) SetupRoutes() {
+	// 静态文件服务
+	g.router.Static("/static", "./static")
 	// ========== 健康检查 ==========
 	g.router.GET("/health", func(c *gin.Context) {
 		onlineCount := websocket.GetOnlineUserCount()
