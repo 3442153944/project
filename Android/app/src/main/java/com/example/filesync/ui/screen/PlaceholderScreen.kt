@@ -104,7 +104,7 @@ fun AboutScreen(
 }
 
 @Composable
-fun LoginScreen(
+fun LoginCard(
     onLoginSuccess: () -> Unit,
     onSkipLogin: () -> Unit,
     modifier: Modifier = Modifier

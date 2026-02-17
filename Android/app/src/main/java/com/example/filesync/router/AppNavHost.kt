@@ -13,6 +13,7 @@ import androidx.navigation.navArgument
 import com.example.filesync.ui.screen.*
 import com.example.filesync.ui.screen.files.*
 import com.example.filesync.ui.screen.permission.PermissionScreen
+import com.example.filesync.ui.screen.person.LoginScreen
 import com.example.filesync.ui.screen.person.PersonalScreen
 //import com.example.filesync.ui.screen.settings.*
 import com.example.filesync.ui.screen.transmission.TransferScreen
@@ -149,11 +150,11 @@ fun AppNavHost(
         // 登录页面
         composable(AppRoute.Login.route) {
             LoginScreen(
-                onLoginSuccess = {
-                    navController.navigateAndClearBackStack(AppRoute.Home)
+                onLoginSuccess = { userInfo ->
+                    navController.navigateAndClearBackStack(AppRoute.Home.route)
                 },
-                onSkipLogin = {
-                    navController.navigateAndClearBackStack(AppRoute.Home)
+                onLoginError = { errorMsg ->
+                    // 暂时留空或打印日志，后续加 Snackbar
                 }
             )
         }

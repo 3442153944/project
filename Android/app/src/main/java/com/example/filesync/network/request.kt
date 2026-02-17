@@ -199,9 +199,20 @@ object Request {
                                     val tokenValue = tokenField.get(dataValue) as? String
                                     tokenValue?.let { saveToken(it) }
                                 }
+                                // 切回主线程再触发回调
+                                withContext(Dispatchers.Main) {
+                                    onResult(Result.success(result))
+                                }
+                            } else {
+                                withContext(Dispatchers.Main) {
+                                    onResult(Result.failure(Exception("HTTP ${response.code}: ${response.message}")))
+                                }
                             }
-                        } catch (_: Exception) {
-                            // 忽略 token 提取失败（可能没有 token 字段）
+
+                        } catch (e: Exception) {
+                            withContext(Dispatchers.Main) {
+                                onResult(Result.failure(e))
+                            }
                         }
 
                         onResult(Result.success(result))
@@ -209,6 +220,7 @@ object Request {
                         Log.e(TAG, "JSON 解析失败: ${e.message}")
                         onResult(Result.failure(Exception("JSON 解析失败: ${e.message}")))
                     }
+
                 } else {
                     onResult(Result.failure(Exception("响应体为空")))
                 }

@@ -23,7 +23,13 @@ object RootHelper {
             "/su/bin/su"
         )
 
-        paths.any { java.io.File(it).exists() }
+        try {
+            paths.any { File(it).exists() }
+        } catch (e: SecurityException) {
+            false
+        } catch (e: Exception) {
+            false
+        }
     }
 
     /**

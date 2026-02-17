@@ -1,10 +1,12 @@
 // MainActivity.kt
 package com.example.filesync
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
@@ -32,6 +34,7 @@ import com.example.filesync.util.RootHelper
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -60,6 +63,7 @@ class MainActivity : ComponentActivity() {
  * 应用初始化器
  * 负责权限检查和确定起始路由
  */
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun AppInitializer() {
     val context = LocalContext.current
@@ -126,6 +130,7 @@ private fun LoadingScreen() {
  * 主应用界面
  * 包含底部导航栏和路由管理
  */
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun FileSyncApp(startDestination: String) {
     val navController = rememberNavController()
