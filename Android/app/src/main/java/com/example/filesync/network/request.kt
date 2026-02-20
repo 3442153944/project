@@ -14,6 +14,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.serializer
@@ -31,7 +35,8 @@ object Request {
             field = value.trimEnd('/')
             Log.d(TAG, "基础 URL: $field")
         }
-    var baseStaticUrl="http://192.168.31.100:9999"
+
+    var baseStaticUrl = "http://192.168.31.100:9999"
         set(value) {
             field = value.trimEnd('/')
             Log.d(TAG, "基础静态 URL: $field")
@@ -43,6 +48,9 @@ object Request {
     private val USERNAME_KEY = stringPreferencesKey("saved_username")
     private val PASSWORD_KEY = stringPreferencesKey("saved_password")
     private val REMEMBER_PASSWORD_KEY = booleanPreferencesKey("remember_password")
+
+    // token 自动提取的接口白名单
+    val TOKEN_ENDPOINTS = setOf("/auth/login", "/auth/verify")
 
     val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -62,7 +70,8 @@ object Request {
         Log.d(TAG, "Request 初始化成功")
     }
 
-    // Token 管理
+    // ==================== Token 管理 ====================
+
     suspend fun saveToken(token: String) {
         appContext?.dataStore?.edit { preferences ->
             preferences[TOKEN_KEY] = token
@@ -84,10 +93,11 @@ object Request {
     }
 
     suspend fun hasToken(): Boolean {
-        return getToken() != null
+        return !getToken().isNullOrEmpty()
     }
 
-    // 记住密码功能
+    // ==================== 记住密码 ====================
+
     suspend fun saveCredentials(username: String, password: String, remember: Boolean) {
         appContext?.dataStore?.edit { preferences ->
             preferences[REMEMBER_PASSWORD_KEY] = remember
@@ -120,15 +130,20 @@ object Request {
         Log.d(TAG, "凭据已清除")
     }
 
+    // ==================== 回调风格请求 ====================
+
     /**
-     * POST 请求（主要请求方法）
+     * POST 请求（有请求体）
      */
     suspend inline fun <reified T, reified B> post(
         endpoint: String,
         body: B? = null,
         noinline onResult: (Result<T>) -> Unit = {}
     ) {
-        request("POST", endpoint, body, json.serializersModule.serializer<B>(), onResult)
+        val result = requestSuspend<T, B>("POST", endpoint, body, json.serializersModule.serializer<B>())
+        withContext(Dispatchers.Main) {
+            onResult(result)
+        }
     }
 
     /**
@@ -138,110 +153,13 @@ object Request {
         endpoint: String,
         noinline onResult: (Result<T>) -> Unit = {}
     ) {
-        request<T, Unit>("POST", endpoint, null, null, onResult)
-    }
-
-    /**
-     * 通用请求方法
-     */
-    suspend inline fun <reified T, B> request(
-        method: String,
-        endpoint: String,
-        body: B?,
-        serializer: SerializationStrategy<B>?,
-        noinline onResult: (Result<T>) -> Unit = {}
-    ) = withContext(Dispatchers.IO) {
-        try {
-            val url = "$baseUrl$endpoint"
-            Log.d(TAG, "$method $url")
-
-            val token = getToken()
-
-            val requestBuilder = okhttp3.Request.Builder()
-                .url(url)
-                .apply {
-                    token?.let { header("token", it) }
-                }
-
-            val requestBody = if (body != null && serializer != null) {
-                json.encodeToString(serializer, body).toRequestBody("application/json".toMediaType())
-            } else {
-                "{}".toRequestBody("application/json".toMediaType())
-            }
-
-            when (method.uppercase()) {
-                "POST" -> requestBuilder.post(requestBody)
-                "PUT" -> requestBuilder.put(requestBody)
-                "DELETE" -> requestBuilder.delete(requestBody)
-                "GET" -> requestBuilder.get()
-            }
-
-            val response = client.newCall(requestBuilder.build()).execute()
-
-            // 在 Request.kt 的 request 方法中，修改自动提取 token 的部分：
-
-            if (response.isSuccessful) {
-                val responseBody = response.body?.string()
-
-                if (responseBody != null) {
-                    try {
-                        val result = json.decodeFromString<T>(responseBody)
-
-                        // 自动提取保存 token（只在响应成功时）
-                        try {
-                            val codeField = result!!::class.java.getDeclaredField("code")
-                            codeField.isAccessible = true
-                            val codeValue = codeField.get(result) as? Int
-
-                            // code == 200 表示成功
-                            if (codeValue == 200) {
-                                val dataField = result::class.java.getDeclaredField("data")
-                                dataField.isAccessible = true
-                                val dataValue = dataField.get(result)
-                                if (dataValue != null) {
-                                    val tokenField = dataValue::class.java.getDeclaredField("token")
-                                    tokenField.isAccessible = true
-                                    val tokenValue = tokenField.get(dataValue) as? String
-                                    tokenValue?.let { saveToken(it) }
-                                }
-                                // 切回主线程再触发回调
-                                withContext(Dispatchers.Main) {
-                                    onResult(Result.success(result))
-                                }
-                            } else {
-                                withContext(Dispatchers.Main) {
-                                    onResult(Result.failure(Exception("HTTP ${response.code}: ${response.message}")))
-                                }
-                            }
-
-                        } catch (e: Exception) {
-                            withContext(Dispatchers.Main) {
-                                onResult(Result.failure(e))
-                            }
-                        }
-
-                        onResult(Result.success(result))
-                    } catch (e: Exception) {
-                        Log.e(TAG, "JSON 解析失败: ${e.message}")
-                        onResult(Result.failure(Exception("JSON 解析失败: ${e.message}")))
-                    }
-
-                } else {
-                    onResult(Result.failure(Exception("响应体为空")))
-                }
-            } else {
-                if (response.code == 401) {
-                    Log.w(TAG, "认证失败，清除 token")
-                    clearToken()
-                }
-                onResult(Result.failure(Exception("HTTP ${response.code}: ${response.message}")))
-            }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "请求失败: ${e.message}")
-            onResult(Result.failure(e))
+        val result = requestSuspend<T, Unit>("POST", endpoint, null, null)
+        withContext(Dispatchers.Main) {
+            onResult(result)
         }
     }
+
+    // ==================== Suspend 风格请求 ====================
 
     /**
      * POST 请求 - suspend 版本（有请求体）
@@ -262,8 +180,17 @@ object Request {
         return requestSuspend<T, Unit>("POST", endpoint, null, null)
     }
 
+    // ==================== 核心请求方法 ====================
+
     /**
-     * 通用请求 - suspend 版本，直接返回 Result
+     * 通用请求方法，直接返回 Result<T>
+     *
+     * 逻辑：
+     * 1. 发送 HTTP 请求
+     * 2. HTTP 成功后，先用 JsonObject 解析原始 JSON，检查业务 code
+     * 3. code == 200 时：如果是 login/verify 接口，自动提取并保存 token
+     * 4. code != 200 时：返回业务错误信息（message 字段）
+     * 5. HTTP 401 时：自动清除本地 token
      */
     suspend inline fun <reified T, B> requestSuspend(
         method: String,
@@ -283,58 +210,84 @@ object Request {
                     token?.let { header("token", it) }
                 }
 
-            val requestBody = if (body != null && serializer != null) {
-                json.encodeToString(serializer, body).toRequestBody("application/json".toMediaType())
-            } else {
-                "{}".toRequestBody("application/json".toMediaType())
-            }
-
+            // 构建请求体
             when (method.uppercase()) {
-                "POST" -> requestBuilder.post(requestBody)
-                "PUT" -> requestBuilder.put(requestBody)
-                "DELETE" -> requestBuilder.delete(requestBody)
                 "GET" -> requestBuilder.get()
+                else -> {
+                    val requestBody = if (body != null && serializer != null) {
+                        json.encodeToString(serializer, body)
+                            .toRequestBody("application/json".toMediaType())
+                    } else {
+                        "{}".toRequestBody("application/json".toMediaType())
+                    }
+                    when (method.uppercase()) {
+                        "POST" -> requestBuilder.post(requestBody)
+                        "PUT" -> requestBuilder.put(requestBody)
+                        "DELETE" -> requestBuilder.delete(requestBody)
+                    }
+                }
             }
 
             val response = client.newCall(requestBuilder.build()).execute()
 
-            if (response.isSuccessful) {
-                val responseBody = response.body?.string()
-                if (responseBody != null) {
-                    val result = json.decodeFromString<T>(responseBody)
-
-                    // 自动提取保存 token
-                    try {
-                        val codeField = result!!::class.java.getDeclaredField("code")
-                        codeField.isAccessible = true
-                        val codeValue = codeField.get(result) as? Int
-                        if (codeValue == 200) {
-                            val dataField = result::class.java.getDeclaredField("data")
-                            dataField.isAccessible = true
-                            val dataValue = dataField.get(result)
-                            if (dataValue != null) {
-                                val tokenField = dataValue::class.java.getDeclaredField("token")
-                                tokenField.isAccessible = true
-                                val tokenValue = tokenField.get(dataValue) as? String
-                                tokenValue?.let { saveToken(it) }
-                            }
-                        }
-                    } catch (_: Exception) { }
-
-                    Result.success(result)
-                } else {
-                    Result.failure(Exception("响应体为空"))
-                }
-            } else {
+            if (!response.isSuccessful) {
                 if (response.code == 401) {
-                    Log.w(TAG, "认证失败，清除 token")
+                    Log.w(TAG, "认证失败，清除 token 并跳转登录")
                     clearToken()
+                    AuthManager.notifyTokenExpired()
                 }
-                Result.failure(Exception("HTTP ${response.code}: ${response.message}"))
+                return@withContext Result.failure(
+                    Exception("HTTP ${response.code}: ${response.message}")
+                )
+            }
+
+            val responseBody = response.body?.string()
+            if (responseBody.isNullOrEmpty()) {
+                return@withContext Result.failure(Exception("响应体为空"))
+            }
+
+            Log.d(TAG, "响应: ${responseBody.take(200)}")
+
+            // 先用 JsonObject 解析，检查业务 code
+            val jsonObj = json.parseToJsonElement(responseBody).jsonObject
+            val code = jsonObj["code"]?.jsonPrimitive?.intOrNull
+            val message = jsonObj["message"]?.jsonPrimitive?.content ?: "未知错误"
+
+            if (code != 200) {
+                Log.w(TAG, "业务错误: code=$code, message=$message")
+                return@withContext Result.failure(Exception(message))
+            }
+
+            // 如果是 login/verify 接口，自动提取 token
+            if (TOKEN_ENDPOINTS.any { endpoint.endsWith(it) }) {
+                tryExtractToken(jsonObj)
+            }
+
+            // 反序列化为目标类型
+            val result = json.decodeFromString<T>(responseBody)
+            Result.success(result)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "请求失败: ${e.message}", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 从 JSON 响应中提取 token（仅用于 login/verify 接口）
+     * 安全地尝试从 data.token 中提取，不存在则跳过
+     */
+    suspend fun tryExtractToken(jsonObj: JsonObject) {
+        try {
+            val data = jsonObj["data"]?.jsonObject ?: return
+            val tokenValue = data["token"]?.jsonPrimitive?.content
+            if (!tokenValue.isNullOrEmpty()) {
+                saveToken(tokenValue)
+                Log.d(TAG, "自动提取并保存了新 token")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "请求失败: ${e.message}")
-            Result.failure(e)
+            // verify 接口的 data 里没有 token 字段，这是正常的
+            Log.d(TAG, "未从响应中提取到 token: ${e.message}")
         }
     }
 

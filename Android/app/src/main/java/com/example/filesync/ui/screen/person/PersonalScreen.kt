@@ -4,6 +4,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavController
 import com.example.filesync.network.Request
+import com.example.filesync.router.AppRoute
+import com.example.filesync.router.navigateAndClearBackStack
 import com.example.filesync.ui.viewModel.user.PPersonalState
 import com.example.filesync.ui.viewModel.user.PVerifyResponse
 import kotlinx.coroutines.launch
@@ -50,6 +52,7 @@ fun PersonalScreen(modifier: Modifier = Modifier, navController: NavController) 
                         scope.launch {
                             Request.clearToken()
                             uiState = PPersonalState.NotLoggedIn
+                            navController.navigateAndClearBackStack(AppRoute.Login)
                         }
                     },
                     onEditClick = { isEditing = true }

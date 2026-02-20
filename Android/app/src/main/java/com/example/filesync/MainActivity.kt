@@ -3,6 +3,7 @@ package com.example.filesync
 
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -19,14 +20,17 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.downloader.PRDownloader
 import com.downloader.PRDownloaderConfig
 import com.example.filesync.data.sync.WebSocketManager
+import com.example.filesync.network.AuthManager
 import com.example.filesync.network.Request
 import com.example.filesync.router.AppNavHost
 import com.example.filesync.router.AppRoute
+import com.example.filesync.router.navigateAndClearBackStack
 import com.example.filesync.router.navigateToMainTab
 import com.example.filesync.ui.theme.FileSyncTheme
 import com.example.filesync.util.PermissionHelper
@@ -41,11 +45,11 @@ class MainActivity : ComponentActivity() {
         // 初始化 Request
         Request.init(this)
 
-        // 初始化 PRDownloader（修正后的配置方式）
+        // 初始化 PRDownloader
         val config = PRDownloaderConfig.newBuilder()
-            .setDatabaseEnabled(true)       // 启用数据库支持断点续传
-            .setReadTimeout(30_000)         // 读取超时 30 秒
-            .setConnectTimeout(30_000)      // 连接超时 30 秒
+            .setDatabaseEnabled(true)
+            .setReadTimeout(30_000)
+            .setConnectTimeout(30_000)
             .build()
 
         PRDownloader.initialize(applicationContext, config)
@@ -84,12 +88,9 @@ fun AppInitializer() {
             }
 
             startDestination = when {
-                // 检查是否需要登录
                 !Request.hasToken() -> AppRoute.Login.route
-                // 检查权限
                 !(hasBasicPermissions && hasManageStorage && hasRootAccess) ->
                     AppRoute.Permission.route
-                // 进入主页
                 else -> AppRoute.Home.route
             }
 
@@ -128,19 +129,33 @@ private fun LoadingScreen() {
 
 /**
  * 主应用界面
- * 包含底部导航栏和路由管理
+ * 包含底部导航栏、路由管理和全局认证守卫
  */
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun FileSyncApp(startDestination: String) {
     val navController = rememberNavController()
     val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // WebSocket 生命周期管理
+    // ========== 全局路由守卫：监听 401 事件，跳转登录页 ==========
+    LaunchedEffect(Unit) {
+        AuthManager.authEvents.collect { event ->
+            when (event) {
+                is AuthManager.AuthEvent.TokenExpired -> {
+                    Toast.makeText(context, "登录已过期，请重新登录", Toast.LENGTH_SHORT).show()
+                    WebSocketManager.disconnect()
+                    navController.navigateAndClearBackStack(AppRoute.Login)
+                }
+            }
+        }
+    }
+
+    // ========== WebSocket 生命周期管理 ==========
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -165,7 +180,7 @@ fun FileSyncApp(startDestination: String) {
         }
     }
 
-    // 判断是否显示底部导航
+    // ========== UI ==========
     val shouldShowBottomNav = AppRoute.shouldShowBottomNav(currentRoute)
 
     NavigationSuiteScaffold(

@@ -2,6 +2,7 @@
 package com.example.filesync.ui.viewModel.files
 
 import android.util.Log
+import androidx.annotation.Keep
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.filesync.network.Request
@@ -63,6 +64,7 @@ data class DiskResponse(
 )
 
 @Serializable
+@Keep
 data class DiskData(
     val total: Int = 0,
     @SerialName("all_disks")
