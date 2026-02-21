@@ -114,6 +114,13 @@ func NewGetAvailableDiskList(db *gorm.DB, redis *redis.Client, cfg *config.Confi
 
 // HandlerPOST 处理POST请求
 func (h *getAvailableDiskList) HandlerPOST(c *gin.Context) {
+	// 1. 验证登录状态
+	isAuth := c.GetBool("Auth")
+	if !isAuth {
+		response.Unauthorized(c, "请先登录")
+		return
+	}
+
 	var req GetDiskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		// 如果解析失败，使用默认值

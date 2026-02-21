@@ -1,10 +1,13 @@
 package com.example.filesync.ui.screen.person
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -19,7 +22,9 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.filesync.network.Request
 import com.example.filesync.ui.viewModel.user.PUser
+import com.example.filesync.util.formatDate
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun UserInfoScreen(
     user: PUser,
@@ -152,15 +157,15 @@ fun UserInfoScreen(
                 )
                 HorizontalDivider()
                 InfoRow(
-                    icon = Icons.Default.Login,
+                    icon = Icons.AutoMirrored.Filled.Login,
                     label = "最后登录",
-                    value = user.last_login ?: "未知"
+                    value = formatDate("yyyy-MM-dd HH:mm:ss", user.last_login ?: "未知")
                 )
                 HorizontalDivider()
                 InfoRow(
                     icon = Icons.Default.CalendarMonth,
                     label = "注册时间",
-                    value = user.created_at ?: "未知"
+                    value = formatDate("yyyy-MM-dd HH:mm:ss", user.created_at ?: "未知")
                 )
             }
         }

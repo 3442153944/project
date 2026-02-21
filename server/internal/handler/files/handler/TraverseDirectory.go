@@ -59,6 +59,13 @@ type TraverseResponse struct {
 }
 
 func (h *traverseDirectory) HandlerPOST(c *gin.Context) {
+	// 1. 验证登录状态
+	isAuth := c.GetBool("Auth")
+	if !isAuth {
+		response.Unauthorized(c, "请先登录")
+		return
+	}
+
 	var req TraverseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		logger.Error("参数错误", zap.Error(err))

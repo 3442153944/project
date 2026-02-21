@@ -26,3 +26,7 @@ type FileMsg interface {
 type FileUpload interface {
 	HandlerPOST(c *gin.Context)
 }
+
+type FileDownloadHis interface {
+	HandlerPOST(c *gin.Context)
+}

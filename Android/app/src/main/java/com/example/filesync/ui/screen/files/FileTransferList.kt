@@ -1,14 +1,17 @@
 // ui/screen/files/FileTransferListScreen.kt
 package com.example.filesync.ui.screen.files
 
-import androidx.compose.foundation.background
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,7 +21,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.filesync.ui.viewModel.files.*
 import com.example.filesync.ui.viewModel.transmission.FileTransferStatus
+import com.example.filesync.util.formatDate
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileTransferListScreen(
@@ -30,6 +35,9 @@ fun FileTransferListScreen(
     val transferItems by viewModel.transferItems.collectAsState()
     val filterStatus by viewModel.filterStatus.collectAsState()
     val sortBy by viewModel.sortBy.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    val total by viewModel.total.collectAsState()
 
     var showFilterMenu by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
@@ -38,10 +46,46 @@ fun FileTransferListScreen(
         viewModel.getFilteredAndSortedItems()
     }
 
+    val listState = rememberLazyListState()
+
+    // 滚动到底部时加载更多
+    val reachedBottom by remember {
+        derivedStateOf {
+            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+            lastVisibleItem != null && lastVisibleItem.index >= listState.layoutInfo.totalItemsCount - 3
+        }
+    }
+    LaunchedEffect(reachedBottom) {
+        if (reachedBottom && !isLoading) {
+            viewModel.loadMore()
+        }
+    }
+
+    // 错误提示 Snackbar
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.dismissError()
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("传输列表") },
+                title = {
+                    Column {
+                        Text("传输列表")
+                        if (total > 0) {
+                            Text(
+                                "共 $total 条记录",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.ArrowBack, "返回")
@@ -95,48 +139,20 @@ fun FileTransferListScreen(
                             expanded = showSortMenu,
                             onDismissRequest = { showSortMenu = false }
                         ) {
-                            DropdownMenuItem(
-                                text = { Text("时间 ↓") },
-                                onClick = {
-                                    viewModel.setSortBy(SortBy.TIME_DESC)
-                                    showSortMenu = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("时间 ↑") },
-                                onClick = {
-                                    viewModel.setSortBy(SortBy.TIME_ASC)
-                                    showSortMenu = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("名称 ↑") },
-                                onClick = {
-                                    viewModel.setSortBy(SortBy.NAME_ASC)
-                                    showSortMenu = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("名称 ↓") },
-                                onClick = {
-                                    viewModel.setSortBy(SortBy.NAME_DESC)
-                                    showSortMenu = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("大小 ↑") },
-                                onClick = {
-                                    viewModel.setSortBy(SortBy.SIZE_ASC)
-                                    showSortMenu = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("大小 ↓") },
-                                onClick = {
-                                    viewModel.setSortBy(SortBy.SIZE_DESC)
-                                    showSortMenu = false
-                                }
-                            )
+                            SortBy.entries.forEach { sort ->
+                                DropdownMenuItem(
+                                    text = { Text(sort.displayName) },
+                                    onClick = {
+                                        viewModel.setSortBy(sort)
+                                        showSortMenu = false
+                                    },
+                                    leadingIcon = {
+                                        if (sortBy == sort) {
+                                            Icon(Icons.Default.Check, null)
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
 
@@ -170,52 +186,75 @@ fun FileTransferListScreen(
             )
         }
     ) { padding ->
-        if (filteredItems.isEmpty()) {
-            Box(
-                modifier = modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
+        PullToRefreshBox(
+            isRefreshing = isLoading && transferItems.isEmpty(),
+            onRefresh = { viewModel.loadTransferHistory() },
+            modifier = modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            if (filteredItems.isEmpty() && !isLoading) {
+                // 空状态
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.CloudQueue,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.outline
+                        )
+                        Text(
+                            "暂无传输记录",
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                        TextButton(onClick = { viewModel.loadTransferHistory() }) {
+                            Text("点击刷新")
+                        }
+                    }
+                }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        Icons.Default.CloudQueue,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.outline
-                    )
-                    Text(
-                        "暂无传输记录",
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(filteredItems, key = { it.id }) { item ->
-                    TransferItemCard(
-                        item = item,
-                        onRetry = { viewModel.retryTransfer(item.id) },
-                        onCancel = { viewModel.cancelTransfer(item.id) },
-                        onPause = { viewModel.pauseTransfer(item.id) },
-                        onResume = { viewModel.resumeTransfer(item.id) },
-                        onRemove = { viewModel.removeTransferItem(item.id) }
-                    )
+                    items(filteredItems, key = { it.id }) { item ->
+                        TransferItemCard(
+                            item = item,
+                            onRetry = { viewModel.retryTransfer(item.id) },
+                            onCancel = { viewModel.cancelTransfer(item.id) },
+                            onPause = { viewModel.pauseTransfer(item.id) },
+                            onResume = { viewModel.resumeTransfer(item.id) },
+                            onRemove = { viewModel.removeTransferItem(item.id) }
+                        )
+                    }
+
+                    // 底部加载指示器
+                    if (isLoading && transferItems.isNotEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun TransferItemCard(
     item: FileTransferItem,
@@ -254,7 +293,8 @@ fun TransferItemCard(
                     Text(
                         item.name,
                         style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
                     )
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -266,7 +306,7 @@ fun TransferItemCard(
                         )
                         if (item.isDir && item.childrenCount > 0) {
                             Text(
-                                "• ${item.childrenCount} 项",
+                                "· ${item.childrenCount} 项",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -274,8 +314,16 @@ fun TransferItemCard(
                     }
                 }
 
-                // 状态标签
                 TransferStatusChip(item.status)
+            }
+
+            // 时间信息
+            if (item.startTime > 0) {
+                Text(
+                    formatDate("yyyy-MM-dd HH:mm:ss", item.startTime),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             // 进度条（传输中或暂停时显示）
@@ -310,14 +358,12 @@ fun TransferItemCard(
             }
 
             // 错误信息
-            item.errorMessage?.let { error ->
-                if (item.status == FileTransferStatus.FAILED) {
-                    Text(
-                        error,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
+            if (item.status == FileTransferStatus.FAILED && item.errorMessage != null) {
+                Text(
+                    item.errorMessage,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
             }
 
             // 操作按钮
@@ -327,7 +373,6 @@ fun TransferItemCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 when {
-                    // 失败：显示重试按钮
                     item.status.canRetry -> {
                         TextButton(onClick = onRetry) {
                             Icon(Icons.Default.Refresh, null, Modifier.size(18.dp))
@@ -335,7 +380,6 @@ fun TransferItemCard(
                             Text("重试")
                         }
                     }
-                    // 暂停：显示恢复按钮
                     item.status == FileTransferStatus.PAUSED -> {
                         TextButton(onClick = onResume) {
                             Icon(Icons.Default.PlayArrow, null, Modifier.size(18.dp))
@@ -343,7 +387,6 @@ fun TransferItemCard(
                             Text("恢复")
                         }
                     }
-                    // 传输中：显示暂停按钮
                     item.status.canPause -> {
                         TextButton(onClick = onPause) {
                             Icon(Icons.Default.Pause, null, Modifier.size(18.dp))
@@ -353,7 +396,6 @@ fun TransferItemCard(
                     }
                 }
 
-                // 可以取消的状态：显示取消按钮
                 if (item.status.canCancel) {
                     TextButton(onClick = onCancel) {
                         Icon(Icons.Default.Cancel, null, Modifier.size(18.dp))
@@ -362,7 +404,6 @@ fun TransferItemCard(
                     }
                 }
 
-                // 可以删除记录的状态：显示删除按钮
                 if (item.status.canDelete) {
                     IconButton(onClick = onRemove) {
                         Icon(Icons.Default.Delete, "删除记录")
@@ -432,10 +473,37 @@ fun TransferStatusChip(status: FileTransferStatus) {
     }
 }
 
+/**
+ * 格式化时间戳为可读时间
+ */
+@RequiresApi(Build.VERSION_CODES.O)
+private fun formatDate(pattern: String, millis: Long): String {
+    if (millis <= 0) return ""
+    return try {
+        val instant = java.time.Instant.ofEpochMilli(millis)
+        val zdt = instant.atZone(java.time.ZoneId.systemDefault())
+        zdt.format(java.time.format.DateTimeFormatter.ofPattern(pattern))
+    } catch (e: Exception) {
+        ""
+    }
+}
+
+fun formatFileSize(bytes: Long): String {
+    if (bytes < 1024) return "$bytes B"
+    val units = arrayOf("KB", "MB", "GB", "TB")
+    var value = bytes.toDouble()
+    var unitIndex = -1
+    while (value >= 1024 && unitIndex < units.size - 1) {
+        value /= 1024
+        unitIndex++
+    }
+    return "%.2f %s".format(value, units[unitIndex])
+}
+
 fun formatSpeed(bytesPerSecond: Long): String {
     return when {
         bytesPerSecond < 1024 -> "$bytesPerSecond B/s"
         bytesPerSecond < 1024 * 1024 -> "${bytesPerSecond / 1024} KB/s"
-        else -> "${bytesPerSecond / (1024 * 1024)} MB/s"
+        else -> "%.1f MB/s".format(bytesPerSecond / (1024.0 * 1024.0))
     }
 }
