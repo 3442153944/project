@@ -3,18 +3,18 @@ import {onMounted, h} from "vue"
 import {useRoute, useRouter} from "vue-router"
 import {storeToRefs} from "pinia"
 import {useCatalogStore} from "./composeables/useCatalogStore"
-import {NDataTable, NButton, NSpace, NSpin, NEmpty, NTag} from "naive-ui"
+import {NDataTable, NButton, NSpace, NEmpty, NTag, useMessage} from "naive-ui"
 import type {DataTableColumns} from "naive-ui"
 import type {FileItem} from "@syl/models"
 
 const route = useRoute()
 const router = useRouter()
 const catalogStore = useCatalogStore()
+const message = useMessage() // 引入 Naive UI 的消息提示
 
 // 使用 storeToRefs 保持响应式解构
 const {currentPath, parentPath, items, loading} = storeToRefs(catalogStore)
 
-// 首次进入时，从路由参数获取目标路径 (例如从磁盘列表跳过来)
 onMounted(() => {
   const initPath = route.query.path as string
   if (initPath) {
@@ -25,12 +25,11 @@ onMounted(() => {
 // 处理表格行的双击/点击事件
 const handleRowClick = (row: FileItem) => {
   if (row.is_dir) {
-    // 是目录：请求下一级，并同步更新路由 URL (方便浏览器前进后退)
     catalogStore.fetchDirectory(row.path)
     router.push({query: {path: row.path}})
   } else {
-    // 是文件：后续在这里对接预览或下载逻辑
-    console.log("准备预览/下载文件:", row.path)
+    // 单击文件直接触发下载
+    handleDownload(row)
   }
 }
 
@@ -40,7 +39,30 @@ const handleGoUp = () => {
   router.push({query: {path: parentPath.value}})
 }
 
-// 格式化时间的小工具
+// ✨ 核心单文件下载逻辑
+const handleDownload = (row: FileItem) => {
+  if (row.is_dir) {
+    message.warning("暂时不支持直接下载整个文件夹哦")
+    return
+  }
+
+  const token = localStorage.getItem("token") || ""
+
+  // 注意：这里的 /api 前缀请根据你实际的代理配置或 config.http 进行调整
+  const downloadUrl = `/api/files/get-file?path=${encodeURIComponent(row.path)}&name=${encodeURIComponent(row.name)}&token=${token}`
+
+  // 动态创建 a 标签触发浏览器原生下载，不占用内存
+  const a = document.createElement("a")
+  a.href = downloadUrl
+  a.download = row.name
+  a.style.display = "none"
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+
+  message.success(`已开始下载: ${row.name}`)
+}
+
 const formatTime = (isoString: string) => {
   if (!isoString) return "-"
   const date = new Date(isoString)
@@ -55,15 +77,14 @@ const columns: DataTableColumns<FileItem> = [
   {
     title: "名称",
     key: "name",
-    sorter: "default", // 开启默认排序
+    sorter: "default",
     render(row) {
-      // 简单用 Emoji 区分文件和文件夹，后期可以换成 NIcon + 图标库
       const icon = row.is_dir ? "📁" : "📄"
       return h(
           "div",
           {
             style: {display: "flex", alignItems: "center", gap: "8px", cursor: "pointer"},
-            onClick: () => handleRowClick(row) // 点击名称进入
+            onClick: () => handleRowClick(row)
           },
           [
             h("span", {style: {fontSize: "18px"}}, icon),
@@ -84,8 +105,6 @@ const columns: DataTableColumns<FileItem> = [
     key: "mode",
     render(row) {
       const perms = catalogStore.parseMode(row.mode)
-
-      // 使用 NSpace 组合多个 NTag，让它们横向排列并且有间距
       return h(
           NSpace,
           {size: 'small'},
@@ -93,11 +112,7 @@ const columns: DataTableColumns<FileItem> = [
             default: () => perms.map(p =>
                 h(
                     NTag,
-                    {
-                      size: "small",
-                      type: p.type as any, // 'info' | 'success' | 'warning' | 'error'
-                      bordered: false
-                    },
+                    {size: "small", type: p.type as any, bordered: false},
                     {default: () => p.label}
                 )
             )
@@ -110,6 +125,28 @@ const columns: DataTableColumns<FileItem> = [
     key: "children_count",
     render(row) {
       return row.is_dir ? `${row.children_count} 项` : "-"
+    }
+  },
+  // ✨ 新增：操作列
+  {
+    title: "操作",
+    key: "actions",
+    width: 100,
+    render(row) {
+      return h(
+          NButton,
+          {
+            size: "small",
+            type: "primary",
+            ghost: true,
+            disabled: row.is_dir,
+            onClick: (e) => {
+              e.stopPropagation() // 阻止冒泡，防止触发整行的点击事件
+              handleDownload(row)
+            }
+          },
+          {default: () => (row.is_dir ? "-" : "下载")}
+      )
     }
   }
 ]
@@ -156,6 +193,7 @@ const columns: DataTableColumns<FileItem> = [
 </template>
 
 <style scoped>
+/* 样式保持不变 */
 .catalog-container {
   padding: 16px;
   background-color: #fff;
@@ -194,7 +232,6 @@ const columns: DataTableColumns<FileItem> = [
   overflow: hidden;
 }
 
-/* 隐藏表格悬浮时的默认背景色，改用更清爽的样式 */
 :deep(.n-data-table-tr:hover) {
   background-color: #f0f7ff !important;
 }
