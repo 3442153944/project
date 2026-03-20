@@ -26,6 +26,11 @@ export const router = createRouter({
                     component: () => import("../views/file/Upload.vue")
                 },
                 {
+                    path: "file/catalog",
+                    name: "Catalog",
+                    component: () => import("../views/catalog/ViewCatalog.vue")
+                },
+                {
                     path: "monitor/system",
                     name: "MonitorSystem",
                     component: () => import("../views/monitor/System.vue")

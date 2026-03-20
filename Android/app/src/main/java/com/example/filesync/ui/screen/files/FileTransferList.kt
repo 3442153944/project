@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -279,7 +280,7 @@ fun TransferItemCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    if (item.isDir) Icons.Default.Folder else Icons.Default.InsertDriveFile,
+                    if (item.isDir) Icons.Default.Folder else Icons.AutoMirrored.Filled.InsertDriveFile,
                     contentDescription = null,
                     modifier = Modifier.size(40.dp),
                     tint = when (item.status) {
