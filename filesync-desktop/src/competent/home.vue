@@ -3,10 +3,9 @@ import {onMounted, ref, computed} from "vue"
 import {useRouter, useRoute} from "vue-router"
 import {useLogin} from "./login/login.ts"
 import {useMenuConfig} from "./composeables/menu-config.ts"
-
-// 1. 按需引入 Naive UI 的组件和类型 (不需要全局注册)
 import {NMenu, NButton} from "naive-ui"
 import type {MenuOption} from "naive-ui"
+import {logo} from "@syl/icon"
 
 const router = useRouter()
 const route = useRoute() // 引入 route 用于菜单高亮
@@ -52,6 +51,9 @@ const handleLogout = () => {
   localStorage.removeItem("userInfo")
   router.push("/login")
 }
+const handleHome = () => {
+  router.push("/")
+}
 
 // 3. 菜单点击事件：Naive UI 会直接传入对应的 key (即 item.path)
 const handleMenuClick = (key: string) => {
@@ -63,7 +65,9 @@ const handleMenuClick = (key: string) => {
   <div class="layout">
     <div class="header">
       <div class="header-left">
-        <div class="logo">云梯</div>
+        <div class="logo" @click="handleHome">
+          <img :src="logo" alt="logo"/>
+        </div>
 
         <n-menu
             mode="horizontal"
@@ -116,6 +120,16 @@ const handleMenuClick = (key: string) => {
   font-size: 20px;
   font-weight: bold;
   color: #1890ff; /* 后续你可以用 Naive UI 的主题变量替换这里的硬编码颜色 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  img {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+  }
 }
 
 .header-right {
