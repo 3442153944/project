@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@sunyuanling/*": ["src/main/ets/*"],
+      "@common/*": ["../../common/src/main/ets/*"]
+    }
+  }
+}

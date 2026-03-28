@@ -1,0 +1,92 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\sunyuanling\\.ohos\\config\\default_file_0bavNhVIkwxZ4rIIO_EcqUP0XRxTRGYnHBwdJ-_zmkg=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001ABB49E6392DA390CDF833DFB0B9D4E238E685EDBE841293FA6DEA039EC5BCFE672C4F82141E61",
+          "profile": "C:\\Users\\sunyuanling\\.ohos\\config\\default_file_0bavNhVIkwxZ4rIIO_EcqUP0XRxTRGYnHBwdJ-_zmkg=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\sunyuanling\\.ohos\\config\\default_file_0bavNhVIkwxZ4rIIO_EcqUP0XRxTRGYnHBwdJ-_zmkg=.p12",
+          "storePassword": "0000001A0FE8403F8A09DAD02C8CC93DAD24F5B73E2C9AD305F7508C5E130B782216B4F803B1E812917A"
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "targetSdkVersion": "6.0.2(22)",
+        "compatibleSdkVersion": "6.0.2(22)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug",
+      },
+      {
+        "name": "release"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "sunyuanling",
+      "srcPath": "./products/sunyuanling",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "common",
+      "srcPath": "./common",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "adaptiveLayout",
+      "srcPath": "./features/adaptiveLayout",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "responsiveLayout",
+      "srcPath": "./features/responsiveLayout",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}

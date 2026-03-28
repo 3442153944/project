@@ -58,7 +58,7 @@ export const router = createRouter({
 })
 
 //路由守卫增强
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, _from, next) => {
     const token = localStorage.getItem("token")
 
     // 如果去登录页

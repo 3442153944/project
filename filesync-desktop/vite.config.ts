@@ -2,7 +2,7 @@ import {defineConfig, loadEnv} from "vite";
 import vue from "@vitejs/plugin-vue";
 import VueDevTools from 'vite-plugin-vue-devtools'
 import VueSetupExtend from 'vite-plugin-vue-setup-extend'
-
+import checker from 'vite-plugin-checker'
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
@@ -14,6 +14,7 @@ export default defineConfig(async ({mode}) => {
     return {
         plugins: [
             vue(),
+            checker({ vueTsc: true }),
             // 仅在开发环境启用 DevTools
             // ...(env.VITE_DEVTOOLS === 'true' ? [
             //     VueDevTools({

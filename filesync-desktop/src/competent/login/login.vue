@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref } from "vue"
-import { useRouter } from "vue-router"
-import { useLogin } from "./login.ts"
-import { ElMessage } from "element-plus"
+import {ref} from "vue"
+import {useRouter} from "vue-router"
+import {useLogin} from "./login.ts"
+import {ElMessage} from "element-plus"
+import {User, Lock} from "@element-plus/icons-vue"
 
 const router = useRouter()
-const { login } = useLogin()
+const {login} = useLogin()
 
 const loginForm = ref({
   username: "",
@@ -56,7 +57,7 @@ const handleLogin = async () => {
     ElMessage.success("登录成功")
 
     // 跳转到首页
-    await router.push({ name: "Home" })
+    await router.push({name: "Home"})
   } catch (error) {
     console.error("登录失败", error)
   } finally {
@@ -152,8 +153,7 @@ const handleKeydown = (e: KeyboardEvent) => {
   position: absolute;
   width: 200%;
   height: 200%;
-  background-image:
-      radial-gradient(circle, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
   background-size: 50px 50px;
   animation: moveBackground 20s linear infinite;
 }
