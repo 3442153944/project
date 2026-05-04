@@ -1,0 +1,40 @@
+# 数据库配置
+db:
+  host: 127.0.0.1
+  port: 3306
+  name: syncfile
+  user: syncfile
+  password: 123456
+
+#日志配置
+log:
+  path: ./log
+  level: info
+  format: json
+  console: true
+  file: true
+# 日志文件最大大小（MB）
+  max_size: 100
+  # 日志文件最大年龄（天）
+  max_age: 7
+  # 日志文件最大备份数量
+  max_backup: 3
+
+# 白名单路由配置，该路由下的请求不会进行认证
+whitelist:
+  - /ping
+  - /register
+
+# 认证配置
+auth:
+  enabled: true
+#  token有效时间（天）
+  token_expire: 7
+#  自动刷新时间（天）
+  refresh_expire: 1
+#  token密钥
+  secret: 123456
+
+#  服务器配置
+server:
+  port: 8991

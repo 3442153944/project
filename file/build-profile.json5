@@ -5,13 +5,26 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "C:\\Users\\sunyuanling\\.ohos\\config\\default_file_0bavNhVIkwxZ4rIIO_EcqUP0XRxTRGYnHBwdJ-_zmkg=.cer",
+          "certpath": "C:/Users/sunyuanling/.ohos/config/default_file_0bavNhVIkwxZ4rIIO_EcqUP0XRxTRGYnHBwdJ-_zmkg=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001ABB49E6392DA390CDF833DFB0B9D4E238E685EDBE841293FA6DEA039EC5BCFE672C4F82141E61",
-          "profile": "C:\\Users\\sunyuanling\\.ohos\\config\\default_file_0bavNhVIkwxZ4rIIO_EcqUP0XRxTRGYnHBwdJ-_zmkg=.p7b",
+          "keyPassword": "0000001BD43EC0D23C82B18ABB4ED2F192F059F357172A55C65683F64F67883331513DD8ED6D1605B83AD3",
+          "profile": "C:/Users/sunyuanling/.ohos/config/default_file_0bavNhVIkwxZ4rIIO_EcqUP0XRxTRGYnHBwdJ-_zmkg=.p7b",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\sunyuanling\\.ohos\\config\\default_file_0bavNhVIkwxZ4rIIO_EcqUP0XRxTRGYnHBwdJ-_zmkg=.p12",
-          "storePassword": "0000001A0FE8403F8A09DAD02C8CC93DAD24F5B73E2C9AD305F7508C5E130B782216B4F803B1E812917A"
+          "storeFile": "C:/Users/sunyuanling/.ohos/config/default_file_0bavNhVIkwxZ4rIIO_EcqUP0XRxTRGYnHBwdJ-_zmkg=.p12",
+          "storePassword": "0000001BEBB6A63D652B86DAA7DD8FE03930347A362844A12C40AD9E631958B424E257F6DC0167AB4E163C"
+        }
+      },
+      {
+        "name": "vps",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\sunyuanling\\.ohos\\config\\vps_file_0bavNhVIkwxZ4rIIO_EcqUP0XRxTRGYnHBwdJ-_zmkg=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001BCD0897C631C21D7CBB41235368A7477A2C1BAEE904F4BCD730ABB554B7A40D6149797D57B79120",
+          "profile": "C:\\Users\\sunyuanling\\.ohos\\config\\vps_file_0bavNhVIkwxZ4rIIO_EcqUP0XRxTRGYnHBwdJ-_zmkg=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\sunyuanling\\.ohos\\config\\vps_file_0bavNhVIkwxZ4rIIO_EcqUP0XRxTRGYnHBwdJ-_zmkg=.p12",
+          "storePassword": "0000001B9EBE944BF4501E5D58BB5560F2E824B5F9C18AF6558434B02BCD0FFC58F57162B3AA1D19285CC7"
         }
       }
     ],
