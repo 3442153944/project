@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"net/http"
@@ -9,6 +11,7 @@ import (
 	"syc-file/internal/database"
 	"syc-file/internal/handler"
 	"syc-file/pkg/logger"
+	"time"
 )
 
 func main() {
@@ -35,6 +38,15 @@ func main() {
 	// 3. 初始化 Gin 引擎
 	// 以前是 r := gin.Default()，现在改为 gin.New()，并手动挂载我们的 Zap 中间件和默认的恢复中间件
 	r := gin.New()
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Token"},
+		ExposeHeaders:    []string{"New-Token", "Token-Refreshed"},
+		AllowCredentials: false,
+		MaxAge:           86400 * time.Second,
+	}))
 	//r.Use(middleware.ZapLogger(), gin.Recovery())
 
 	//建立数据库连接
@@ -42,6 +54,18 @@ func main() {
 	if err != nil {
 		logger.Logger.Error("数据库连接失败", zap.Error(err))
 	}
+	logger.Logger.Info("数据库连接成功")
+
+	//建立缓存连接
+	redisClient, err := database.InitRedis(config.Conf.Redis)
+	if err != nil {
+		logger.Logger.Error("缓存连接失败", zap.Error(err))
+	}
+	if err := redisClient.Ping(context.Background()).Err(); err != nil {
+		logger.Logger.Fatal("Redis连接测试失败", zap.Error(err))
+	}
+
+	logger.Logger.Info("Redis连接成功")
 
 	// 4. 注册路由
 	r.GET("/ping", func(c *gin.Context) {
@@ -49,7 +73,7 @@ func main() {
 		logger.Logger.Info("收到 ping 请求")
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
-	handler.RegisterRouters(r, db)
+	handler.RegisterRouters(r, db, redisClient)
 
 	// 5. 启动服务
 	addr := fmt.Sprintf(":%d", config.Conf.Server.Port)

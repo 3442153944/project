@@ -93,6 +93,15 @@ class RequestManager {
                 body: hasBody ? JSON.stringify(body) : undefined
             })
 
+            //刷新token
+            if (response.headers.get("Token-Refreshed") === "true") {
+                const newToken = response.headers.get("New-Token")
+                if (newToken) {
+                    localStorage.setItem("token", newToken)
+                    naiveMessage.success("Token已自动刷新")
+                }
+            }
+
             // 1. 尝试解析响应体 (无论是成功还是失败状态码)
             let resData: any = null;
             const contentType = response.headers.get("content-type");

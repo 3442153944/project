@@ -12,3 +12,74 @@
 {"level":"info","ts":"2026-05-05T02:14:05.284+0800","caller":"database/db_connect.go:26","msg":"正在连接数据库","host":"127.0.0.1","port":3306}
 {"level":"info","ts":"2026-05-05T02:14:05.288+0800","caller":"database/db_connect.go:49","msg":"MySQL 数据库连接成功！"}
 {"level":"info","ts":"2026-05-05T02:14:05.288+0800","caller":"cmd/main.go:56","msg":"服务器准备启动","addr":":8991"}
+{"level":"info","ts":"2026-05-05T16:18:18.804+0800","caller":"cmd/main.go:33","msg":"配置与日志初始化成功","port":8991}
+{"level":"info","ts":"2026-05-05T16:18:18.819+0800","caller":"database/db_connect.go:26","msg":"正在连接数据库","host":"127.0.0.1","port":3306}
+{"level":"info","ts":"2026-05-05T16:18:18.822+0800","caller":"database/db_connect.go:49","msg":"MySQL 数据库连接成功！"}
+{"level":"info","ts":"2026-05-05T16:18:18.828+0800","caller":"cmd/main.go:61","msg":"服务器准备启动","addr":":8991"}
+{"level":"info","ts":"2026-05-05T16:20:18.959+0800","caller":"cmd/main.go:34","msg":"配置与日志初始化成功","port":8991}
+{"level":"info","ts":"2026-05-05T16:20:18.975+0800","caller":"database/db_connect.go:26","msg":"正在连接数据库","host":"127.0.0.1","port":3306}
+{"level":"info","ts":"2026-05-05T16:20:18.978+0800","caller":"database/db_connect.go:49","msg":"MySQL 数据库连接成功！"}
+{"level":"info","ts":"2026-05-05T16:20:18.978+0800","caller":"cmd/main.go:46","msg":"数据库连接成功"}
+{"level":"info","ts":"2026-05-05T16:20:18.983+0800","caller":"cmd/main.go:57","msg":"Redis连接成功"}
+{"level":"info","ts":"2026-05-05T16:20:18.983+0800","caller":"cmd/main.go:69","msg":"服务器准备启动","addr":":8991"}
+{"level":"info","ts":"2026-05-05T16:30:40.935+0800","caller":"cmd/main.go:34","msg":"配置与日志初始化成功","port":8991}
+{"level":"info","ts":"2026-05-05T16:30:40.949+0800","caller":"database/db_connect.go:26","msg":"正在连接数据库","host":"127.0.0.1","port":3306}
+{"level":"info","ts":"2026-05-05T16:30:40.953+0800","caller":"database/db_connect.go:49","msg":"MySQL 数据库连接成功！"}
+{"level":"info","ts":"2026-05-05T16:30:40.953+0800","caller":"cmd/main.go:46","msg":"数据库连接成功"}
+{"level":"info","ts":"2026-05-05T16:30:40.958+0800","caller":"cmd/main.go:57","msg":"Redis连接成功"}
+{"level":"info","ts":"2026-05-05T16:30:40.958+0800","caller":"cmd/main.go:69","msg":"服务器准备启动","addr":":8991"}
+{"level":"info","ts":"2026-05-05T16:58:49.107+0800","caller":"cmd/main.go:35","msg":"配置与日志初始化成功","port":8991}
+{"level":"info","ts":"2026-05-05T16:58:49.121+0800","caller":"database/db_connect.go:26","msg":"正在连接数据库","host":"127.0.0.1","port":3306}
+{"level":"info","ts":"2026-05-05T16:58:49.124+0800","caller":"database/db_connect.go:49","msg":"MySQL 数据库连接成功！"}
+{"level":"info","ts":"2026-05-05T16:58:49.124+0800","caller":"cmd/main.go:49","msg":"数据库连接成功"}
+{"level":"info","ts":"2026-05-05T16:58:49.129+0800","caller":"cmd/main.go:60","msg":"Redis连接成功"}
+{"level":"info","ts":"2026-05-05T16:58:49.129+0800","caller":"cmd/main.go:72","msg":"服务器准备启动","addr":":8991"}
+{"level":"info","ts":"2026-05-05T17:28:24.163+0800","caller":"cmd/main.go:35","msg":"配置与日志初始化成功","port":8991}
+{"level":"info","ts":"2026-05-05T17:28:24.178+0800","caller":"database/db_connect.go:26","msg":"正在连接数据库","host":"127.0.0.1","port":3306}
+{"level":"info","ts":"2026-05-05T17:28:24.181+0800","caller":"database/db_connect.go:49","msg":"MySQL 数据库连接成功！"}
+{"level":"info","ts":"2026-05-05T17:28:24.181+0800","caller":"cmd/main.go:49","msg":"数据库连接成功"}
+{"level":"info","ts":"2026-05-05T17:28:24.187+0800","caller":"cmd/main.go:60","msg":"Redis连接成功"}
+{"level":"info","ts":"2026-05-05T17:28:24.187+0800","caller":"cmd/main.go:72","msg":"服务器准备启动","addr":":8991"}
+{"level":"info","ts":"2026-05-05T17:28:56.352+0800","caller":"user/userRegister.go:107","msg":"用户注册成功","user_id":1,"username":"admin","ip":"::1"}
+{"level":"info","ts":"2026-05-05T17:34:18.382+0800","caller":"cmd/main.go:35","msg":"配置与日志初始化成功","port":8991}
+{"level":"info","ts":"2026-05-05T17:34:18.399+0800","caller":"database/db_connect.go:26","msg":"正在连接数据库","host":"127.0.0.1","port":3306}
+{"level":"info","ts":"2026-05-05T17:34:18.402+0800","caller":"database/db_connect.go:49","msg":"MySQL 数据库连接成功！"}
+{"level":"info","ts":"2026-05-05T17:34:18.402+0800","caller":"cmd/main.go:49","msg":"数据库连接成功"}
+{"level":"info","ts":"2026-05-05T17:34:18.407+0800","caller":"cmd/main.go:60","msg":"Redis连接成功"}
+{"level":"info","ts":"2026-05-05T17:34:18.407+0800","caller":"cmd/main.go:72","msg":"服务器准备启动","addr":":8991"}
+{"level":"info","ts":"2026-05-05T17:37:56.886+0800","caller":"user/resetPassword.go:128","msg":"用户重置密码成功","user_id":1,"username":"admin","ip":"::1"}
+{"level":"info","ts":"2026-05-05T17:39:53.384+0800","caller":"cmd/main.go:35","msg":"配置与日志初始化成功","port":8991}
+{"level":"info","ts":"2026-05-05T17:39:53.399+0800","caller":"database/db_connect.go:26","msg":"正在连接数据库","host":"127.0.0.1","port":3306}
+{"level":"info","ts":"2026-05-05T17:39:53.402+0800","caller":"database/db_connect.go:49","msg":"MySQL 数据库连接成功！"}
+{"level":"info","ts":"2026-05-05T17:39:53.402+0800","caller":"cmd/main.go:49","msg":"数据库连接成功"}
+{"level":"info","ts":"2026-05-05T17:39:53.407+0800","caller":"cmd/main.go:60","msg":"Redis连接成功"}
+{"level":"info","ts":"2026-05-05T17:39:53.407+0800","caller":"cmd/main.go:72","msg":"服务器准备启动","addr":":8991"}
+{"level":"info","ts":"2026-05-05T17:39:58.208+0800","caller":"user/userLogin.go:113","msg":"用户登录成功","user_id":1,"username":"admin","ip":"::1"}
+{"level":"info","ts":"2026-05-05T17:42:10.791+0800","caller":"cmd/main.go:35","msg":"配置与日志初始化成功","port":8991}
+{"level":"info","ts":"2026-05-05T17:42:10.811+0800","caller":"database/db_connect.go:26","msg":"正在连接数据库","host":"127.0.0.1","port":3306}
+{"level":"info","ts":"2026-05-05T17:42:10.814+0800","caller":"database/db_connect.go:49","msg":"MySQL 数据库连接成功！"}
+{"level":"info","ts":"2026-05-05T17:42:10.814+0800","caller":"cmd/main.go:49","msg":"数据库连接成功"}
+{"level":"info","ts":"2026-05-05T17:42:10.819+0800","caller":"cmd/main.go:60","msg":"Redis连接成功"}
+{"level":"info","ts":"2026-05-05T17:42:10.819+0800","caller":"cmd/main.go:72","msg":"服务器准备启动","addr":":8991"}
+{"level":"info","ts":"2026-05-05T17:42:14.145+0800","caller":"user/userLogin.go:113","msg":"用户登录成功","user_id":1,"username":"admin","ip":"::1"}
+{"level":"info","ts":"2026-05-05T17:45:33.541+0800","caller":"user/userLogin.go:113","msg":"用户登录成功","user_id":1,"username":"admin","ip":"::1"}
+{"level":"info","ts":"2026-05-05T17:45:50.991+0800","caller":"cmd/main.go:35","msg":"配置与日志初始化成功","port":8991}
+{"level":"info","ts":"2026-05-05T17:45:51.006+0800","caller":"database/db_connect.go:26","msg":"正在连接数据库","host":"127.0.0.1","port":3306}
+{"level":"info","ts":"2026-05-05T17:45:51.008+0800","caller":"database/db_connect.go:49","msg":"MySQL 数据库连接成功！"}
+{"level":"info","ts":"2026-05-05T17:45:51.008+0800","caller":"cmd/main.go:49","msg":"数据库连接成功"}
+{"level":"info","ts":"2026-05-05T17:45:51.012+0800","caller":"cmd/main.go:60","msg":"Redis连接成功"}
+{"level":"info","ts":"2026-05-05T17:45:51.012+0800","caller":"cmd/main.go:72","msg":"服务器准备启动","addr":":8991"}
+{"level":"info","ts":"2026-05-05T17:45:55.121+0800","caller":"user/userLogin.go:113","msg":"用户登录成功","user_id":1,"username":"admin","ip":"::1"}
+{"level":"info","ts":"2026-05-05T17:49:30.368+0800","caller":"middleware/auth.go:86","msg":"Token验证成功","user_id":1,"username":"admin"}
+{"level":"info","ts":"2026-05-05T17:53:08.288+0800","caller":"user/userLogin.go:113","msg":"用户登录成功","user_id":1,"username":"admin","ip":"::1"}
+{"level":"info","ts":"2026-05-05T17:55:20.278+0800","caller":"cmd/main.go:36","msg":"配置与日志初始化成功","port":8991}
+{"level":"info","ts":"2026-05-05T17:55:20.293+0800","caller":"database/db_connect.go:26","msg":"正在连接数据库","host":"127.0.0.1","port":3306}
+{"level":"info","ts":"2026-05-05T17:55:20.295+0800","caller":"database/db_connect.go:49","msg":"MySQL 数据库连接成功！"}
+{"level":"info","ts":"2026-05-05T17:55:20.295+0800","caller":"cmd/main.go:57","msg":"数据库连接成功"}
+{"level":"info","ts":"2026-05-05T17:55:20.300+0800","caller":"cmd/main.go:68","msg":"Redis连接成功"}
+{"level":"info","ts":"2026-05-05T17:55:20.307+0800","caller":"cmd/main.go:80","msg":"服务器准备启动","addr":":8991"}
+{"level":"info","ts":"2026-05-05T17:55:24.410+0800","caller":"user/userLogin.go:113","msg":"用户登录成功","user_id":1,"username":"admin","ip":"::1"}
+{"level":"info","ts":"2026-05-05T17:55:24.462+0800","caller":"middleware/auth.go:86","msg":"Token验证成功","user_id":1,"username":"admin"}
+{"level":"info","ts":"2026-05-05T17:55:51.587+0800","caller":"user/userLogin.go:113","msg":"用户登录成功","user_id":1,"username":"admin","ip":"::1"}
+{"level":"info","ts":"2026-05-05T17:55:51.615+0800","caller":"middleware/auth.go:86","msg":"Token验证成功","user_id":1,"username":"admin"}
+{"level":"info","ts":"2026-05-05T17:57:15.490+0800","caller":"middleware/auth.go:86","msg":"Token验证成功","user_id":1,"username":"admin"}

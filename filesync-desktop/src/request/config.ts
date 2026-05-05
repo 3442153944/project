@@ -3,7 +3,7 @@ export const config = {
     version: "1.0.0",
     description: "云梯",
     author: "sunyuanling",
-    server: "localhost:9999",
+    server: "localhost:8991",
 
     get websocket() {
         const protocol = this.isSecure ? "wss" : "ws";
@@ -12,7 +12,7 @@ export const config = {
 
     get http() {
         const protocol = this.isSecure ? "https" : "http";
-        return `${protocol}://${this.server}/api`;
+        return `${protocol}://${this.server}/v1`;
     },
 
     get isSecure() {

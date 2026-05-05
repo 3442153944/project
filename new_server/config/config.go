@@ -15,6 +15,7 @@ type Config struct {
 	Whitelist []string     `mapstructure:"whitelist"` // 白名单路由
 	Auth      AuthConfig   `mapstructure:"auth"`
 	Server    ServerConfig `mapstructure:"server"`
+	Redis     RedisConfig  `mapstructure:"redis"`
 }
 
 // DBConfig 数据库配置 (注意：这里将 uri 拆分为 host 和 port 以适配 GORM)
@@ -24,6 +25,13 @@ type DBConfig struct {
 	Name     string `mapstructure:"name"`
 	User     string `mapstructure:"user"`
 	Password string `mapstructure:"password"`
+}
+
+// RedisConfig 缓存配置
+type RedisConfig struct {
+	Host string `mapstructure:"host"`
+	Port int    `mapstructure:"port"`
+	DB   int    `mapstructure:"db"`
 }
 
 // LogConfig 日志配置

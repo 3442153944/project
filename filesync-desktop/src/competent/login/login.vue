@@ -1,27 +1,36 @@
+<!-- login.vue -->
 <script setup lang="ts">
-import {ref} from "vue"
-import {useRouter} from "vue-router"
-import {useLogin} from "./login.ts"
-import {ElMessage} from "element-plus"
-import {User, Lock} from "@element-plus/icons-vue"
+import {ref} from 'vue'
+import {useRouter} from 'vue-router'
+import {useLogin} from './login.ts'
+import {
+  useMessage,
+  NForm,
+  NFormItem,
+  NInput,
+  NButton,
+  NCheckbox,
+  NDivider,
+  NIcon
+} from 'naive-ui'
 
 const router = useRouter()
+const message = useMessage()
 const {login} = useLogin()
 
-const loginForm = ref({
-  username: "",
-  password: ""
+const form = ref({
+  username: '',
+  password: '',
 })
 
 const loading = ref(false)
 const rememberMe = ref(false)
 
-// 页面加载时检查是否有记住的账号
 const loadRememberedAccount = () => {
-  const remembered = localStorage.getItem("rememberedAccount")
+  const remembered = localStorage.getItem('rememberedAccount')
   if (remembered) {
     const account = JSON.parse(remembered)
-    loginForm.value.username = account.username
+    form.value.username = account.username
     rememberMe.value = true
   }
 }
@@ -29,48 +38,47 @@ const loadRememberedAccount = () => {
 loadRememberedAccount()
 
 const handleLogin = async () => {
-  if (!loginForm.value.username || !loginForm.value.password) {
-    ElMessage.warning("请输入用户名和密码")
+  if (!form.value.username || !form.value.password) {
+    message.warning('请输入用户名和密码')
     return
   }
 
   loading.value = true
-
   try {
-    const res = await login(loginForm.value)
+    const res = await login(form.value)
 
-    // 保存 token
-    localStorage.setItem("token", res.token)
+    localStorage.setItem('token', res.token)
+    localStorage.setItem('userInfo', JSON.stringify(res.user))
 
-    // 保存用户信息
-    localStorage.setItem("userInfo", JSON.stringify(res.user))
-
-    // 记住账号
     if (rememberMe.value) {
-      localStorage.setItem("rememberedAccount", JSON.stringify({
-        username: loginForm.value.username
-      }))
+      localStorage.setItem('rememberedAccount', JSON.stringify({username: form.value.username}))
     } else {
-      localStorage.removeItem("rememberedAccount")
+      localStorage.removeItem('rememberedAccount')
     }
 
-    ElMessage.success("登录成功")
-
-    // 跳转到首页
-    await router.push({name: "Home"})
+    message.success('登录成功')
+    await router.push({name: 'Home'})
   } catch (error) {
-    console.error("登录失败", error)
+    console.error('登录失败', error)
   } finally {
     loading.value = false
   }
 }
 
-// 回车登录
 const handleKeydown = (e: KeyboardEvent) => {
-  if (e.key === "Enter") {
-    handleLogin()
-  }
+  if (e.key === 'Enter') handleLogin()
 }
+
+//跳转注册页面
+const handleRegister = () => {
+  router.push('/register')
+}
+
+//跳转忘记密码页面
+const handleResetPassword = () => {
+  router.push('/reset')
+}
+
 </script>
 
 <template>
@@ -82,51 +90,54 @@ const handleKeydown = (e: KeyboardEvent) => {
       </div>
 
       <div class="login-form">
-        <el-form :model="loginForm" label-position="top">
-          <el-form-item label="用户名">
-            <el-input
-                v-model="loginForm.username"
+        <n-form :model="form" label-placement="top">
+          <n-form-item label="用户名">
+            <n-input
+                v-model:value="form.username"
                 placeholder="请输入用户名"
                 size="large"
                 clearable
-                :prefix-icon="User"
-            />
-          </el-form-item>
+            >
+              <template #prefix>
+                <n-icon><i class="icon-user"/></n-icon>
+              </template>
+            </n-input>
+          </n-form-item>
 
-          <el-form-item label="密码">
-            <el-input
-                v-model="loginForm.password"
+          <n-form-item label="密码">
+            <n-input
+                v-model:value="form.password"
                 type="password"
                 placeholder="请输入密码"
                 size="large"
-                show-password
-                :prefix-icon="Lock"
+                show-password-on="click"
             />
-          </el-form-item>
+          </n-form-item>
 
-          <el-form-item>
+          <n-form-item>
             <div class="login-options">
-              <el-checkbox v-model="rememberMe">
-                记住账号
-              </el-checkbox>
-              <el-link type="primary" :underline="false">
-                忘记密码?
-              </el-link>
+              <n-checkbox v-model:checked="rememberMe">记住账号</n-checkbox>
+              <n-button text type="primary" size="small" @click="handleResetPassword">忘记密码?</n-button>
             </div>
-          </el-form-item>
+          </n-form-item>
 
-          <el-form-item>
-            <el-button
-                type="primary"
-                size="large"
-                :loading="loading"
-                @click="handleLogin"
-                class="login-button"
-            >
-              {{ loading ? "登录中..." : "登录" }}
-            </el-button>
-          </el-form-item>
-        </el-form>
+          <n-button
+              type="primary"
+              size="large"
+              :loading="loading"
+              block
+              @click="handleLogin"
+          >
+            {{ loading ? '登录中...' : '登录' }}
+          </n-button>
+        </n-form>
+      </div>
+
+      <div class="login-divider">
+        <n-divider>还没有账号?</n-divider>
+        <n-button block @click="handleRegister">
+          立即注册
+        </n-button>
       </div>
 
       <div class="login-footer">
@@ -149,7 +160,7 @@ const handleKeydown = (e: KeyboardEvent) => {
 }
 
 .login::before {
-  content: "";
+  content: '';
   position: absolute;
   width: 200%;
   height: 200%;
@@ -180,7 +191,7 @@ const handleKeydown = (e: KeyboardEvent) => {
 
 .login-header {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 36px;
 }
 
 .login-header h1 {
@@ -197,7 +208,7 @@ const handleKeydown = (e: KeyboardEvent) => {
 }
 
 .login-form {
-  margin-bottom: 20px;
+  margin-bottom: 8px;
 }
 
 .login-options {
@@ -207,17 +218,14 @@ const handleKeydown = (e: KeyboardEvent) => {
   align-items: center;
 }
 
-.login-button {
-  width: 100%;
-  height: 48px;
-  font-size: 16px;
-  font-weight: 500;
-  border-radius: 8px;
+.login-divider {
+  margin-top: 8px;
 }
 
 .login-footer {
   text-align: center;
-  padding-top: 20px;
+  margin-top: 24px;
+  padding-top: 16px;
   border-top: 1px solid #eee;
 }
 
@@ -227,16 +235,7 @@ const handleKeydown = (e: KeyboardEvent) => {
   margin: 0;
 }
 
-:deep(.el-input__wrapper) {
-  border-radius: 8px;
-}
-
-:deep(.el-button--primary) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-}
-
-:deep(.el-button--primary:hover) {
-  background: linear-gradient(135deg, #5568d3 0%, #6a4292 100%);
+:deep(.n-input) {
+  border-radius: 8px !important;
 }
 </style>
